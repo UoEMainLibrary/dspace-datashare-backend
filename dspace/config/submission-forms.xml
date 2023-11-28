@@ -727,6 +727,14 @@
         <stored-value>ara</stored-value>
       </pair>
       <pair>
+        <displayed-value>As</displayed-value>
+        <stored-value>asz</stored-value>
+      </pair>
+      <pair>
+        <displayed-value>Biga</displayed-value>
+        <stored-value>bhc</stored-value>
+      </pair>
+      <pair>
         <displayed-value>Bulgarian</displayed-value>
         <stored-value>bul</stored-value>
       </pair>
@@ -799,6 +807,10 @@
         <stored-value>isl</stored-value>
       </pair>
       <pair>
+        <displayed-value>Indonesian</displayed-value>
+        <stored-value>ind</stored-value>
+      </pair>
+      <pair>
         <displayed-value>Irish</displayed-value>
         <stored-value>gle</stored-value>
       </pair>
@@ -811,8 +823,20 @@
         <stored-value>jpn</stored-value>
       </pair>
       <pair>
+        <displayed-value>Kawe Ma'ya</displayed-value>
+        <stored-value>kgb</stored-value>
+      </pair>
+      <pair>
+        <displayed-value>Laganyan Ma'ya</displayed-value>
+        <stored-value>lcc</stored-value>
+      </pair>
+      <pair>
         <displayed-value>Latin</displayed-value>
         <stored-value>lat</stored-value>
+      </pair>
+      <pair>
+        <displayed-value>Moi</displayed-value>
+        <stored-value>mxn</stored-value>
       </pair>
       <pair>
         <displayed-value>Norwegian</displayed-value>
@@ -825,6 +849,10 @@
       <pair>
         <displayed-value>Nung</displayed-value>
         <stored-value>nut</stored-value>
+      </pair>
+      <pair>
+        <displayed-value>Papuan Malay</displayed-value>
+        <stored-value>pmy</stored-value>
       </pair>
       <pair>
         <displayed-value>Polish</displayed-value>
@@ -841,6 +869,14 @@
       <pair>
         <displayed-value>Russian</displayed-value>
         <stored-value>rus</stored-value>
+      </pair>
+      <pair>
+        <displayed-value>Salawati</displayed-value>
+        <stored-value>xmx</stored-value>
+      </pair>
+      <pair>
+        <displayed-value>Seget</displayed-value>
+        <stored-value>sbg</stored-value>
       </pair>
       <pair>
         <displayed-value>Shilluk</displayed-value>
@@ -873,6 +909,10 @@
       <pair>
         <displayed-value>Urdu</displayed-value>
         <stored-value>urd</stored-value>
+      </pair>
+      <pair>
+        <displayed-value>Wauyai Ma'ya</displayed-value>
+        <stored-value>wuy</stored-value>
       </pair>
       <pair>
         <displayed-value>Welsh</displayed-value>
