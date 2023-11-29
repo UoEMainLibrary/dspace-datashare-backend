@@ -164,6 +164,12 @@
              <scope visibilityOutside="read-only">submission</scope> 
         </step-definition>
 
+        <step-definition id="datasharelicense" mandatory="false">
+            <heading>submit.progressbar.license</heading>
+            <processing-class>org.dspace.app.rest.submit.step.DescribeStep</processing-class>
+            <type>submission-form</type>
+        </step-definition>
+
         <!-- This optional step may allow the user to select a Creative Commons license -->
         <step-definition id="cclicense" mandatory="false">
             <heading>submit.progressbar.CClicense</heading>
@@ -240,7 +246,9 @@
             <step id="license"/>
 
             <!-- Datashare Licence-->
-            <step id="traditionalpagelicence"/>
+            <!-- <step id="traditionalpagelicence"/> -->
+            <step id="datasharelicense"/>
+
         </submission-process>
     </submission-definitions>
 
