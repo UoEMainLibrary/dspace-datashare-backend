@@ -110,11 +110,6 @@
             <type>submission-form</type>
         </step-definition>
 
-        <step-definition id="traditionalpagelicence" mandatory="true">
-            <heading>Licence</heading>
-            <processing-class>org.dspace.app.rest.submit.step.DescribeStep</processing-class>
-            <type>submission-form</type>
-        </step-definition>
         <!--
         <step-definition id="publicationStep" mandatory="true">
             <heading>submit.progressbar.describe.stepone</heading>
@@ -164,10 +159,17 @@
              <scope visibilityOutside="read-only">submission</scope> 
         </step-definition>
 
-        <step-definition id="datasharelicense" mandatory="false">
-            <heading>submit.progressbar.license</heading>
-            <processing-class>org.dspace.app.rest.submit.step.DescribeStep</processing-class>
-            <type>submission-form</type>
+        <step-definition id="depositoragreement" mandatory="true">
+            <heading>submit.progressbar.depositoragreement</heading>
+            <processing-class>org.dspace.app.rest.submit.step.LicenseStep</processing-class>
+             <type>license</type>
+             <scope visibilityOutside="read-only">submission</scope> 
+        </step-definition>
+
+        <step-definition id="datasharelicense" mandatory="true">
+            <heading>submit.progressbar.datasharelicense</heading>
+            <processing-class>org.dspace.app.rest.submit.step.DatashareLicenseStep</processing-class>
+            <type>datasharelicense</type>
         </step-definition>
 
         <!-- This optional step may allow the user to select a Creative Commons license -->
@@ -240,14 +242,14 @@
             <!-- <step id="extractionstep"/> -->
 
             <!-- Uncomment this step to allow the user to select a Creative Commons License -->
-            <!-- <step id="cclicense"/> -->
+            <step id="cclicense"/>
+            <!-- Datashare Licence-->
+            <step id="datasharelicense"/>
 
-            <!--Step will be to Sign off on the required DSpace License agreement -->
             <step id="license"/>
 
-            <!-- Datashare Licence-->
-            <!-- <step id="traditionalpagelicence"/> -->
-            <step id="datasharelicense"/>
+            <!--Step will be to Sign off on the required DSpace License agreement -->
+            <step id="depositoragreement"/>
 
         </submission-process>
     </submission-definitions>

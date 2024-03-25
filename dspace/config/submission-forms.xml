@@ -601,7 +601,7 @@
       </row>
     </form>
 
-    <!-- Form which defines the licence of the "traditional" DSpace submission
+    <!-- Form which defines the Datashare licence of the "traditional" DSpace submission
         process,
              often used when depositing normal Items. -->
     <form name="datasharelicense">
@@ -609,6 +609,7 @@
         <field>
           <dc-schema>dc</dc-schema>
           <dc-element>rights</dc-element>
+          <dc-qualifier></dc-qualifier>
           <repeatable>false</repeatable>
           <label>Licence</label>
           <input-type value-pairs-name="openaire_license_types">dropdown</input-type>
@@ -622,7 +623,7 @@
           <dc-element>rights</dc-element>
           <dc-qualifier></dc-qualifier>
           <repeatable>false</repeatable>
-          <label>Enter the licence if you chose 'Other'.</label>
+          <label>Enter the licence name or text if you chose 'Other'. (Please avoid use of uncommon special characters.)</label>
           <input-type>textarea</input-type>
           <hint></hint>
           <required></required>
