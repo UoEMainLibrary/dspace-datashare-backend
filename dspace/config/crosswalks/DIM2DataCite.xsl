@@ -69,7 +69,7 @@
                 company as well. We have to ensure to use URIs of our prefix
                 as primary identifiers only.
             -->
-            <xsl:apply-templates select="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and (contains(., $prefix))]" />
+            <xsl:apply-templates select="//dspace:field[@mdschema='dc' and @element='identifier' and starts-with(., concat('http://dx.doi.org/', $prefix))]" />
 
             <!--
                 DataCite (2)
@@ -245,9 +245,9 @@
                 Occ: 0-n
                 Required Attribute: alternateIdentifierType (free format)
             -->
-            <xsl:if test="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(contains(., $prefix))]">
+            <xsl:if test="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(starts-with(., concat('http://dx.doi.org/', $prefix)))]">
                 <xsl:element name="alternateIdentifiers">
-                    <xsl:apply-templates select="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(contains(., $prefix))]" />
+                    <xsl:apply-templates select="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(starts-with(., concat('http://dx.doi.org/', $prefix)))]" />
                 </xsl:element>
             </xsl:if>
 
@@ -333,14 +333,9 @@
         company as well. We have to ensure to use URIs of our prefix
         as primary identifiers only.
     -->
-    <xsl:template match="dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and (contains(., $prefix))]">
+    <xsl:template match="dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and starts-with(., concat('http://dx.doi.org/', $prefix))]">
         <identifier identifierType="DOI">
-            <xsl:if test="starts-with(string(text()), 'https://doi.org/')">
-                <xsl:value-of select="substring(., 17)"/>
-            </xsl:if>
-            <xsl:if test="starts-with(string(text()), 'http://dx.doi.org/')">
-                <xsl:value-of select="substring(., 19)"/>
-            </xsl:if>
+            <xsl:value-of select="substring(., 19)"/>
         </identifier>
     </xsl:template>
 
@@ -484,7 +479,7 @@
                      dissertations. DataCite uses submitted for the "date the 
                      creator submits the resource to the publisher". -->
                 <xsl:if test="@qualifier='submitted'">
-                    <xsl:attribute name="dateType">Submitted</xsl:attribute>
+                    <xsl:attribute name="dateType">Issued</xsl:attribute>
                 </xsl:if>
                 <xsl:if test="@qualifier='updated'">
                     <xsl:attribute name="dateType">Updated</xsl:attribute>
@@ -521,9 +516,9 @@
             <xsl:attribute name="resourceTypeGeneral">
                 <xsl:choose>
                     <xsl:when test="string(text())='Animation'">Audiovisual</xsl:when>
-                    <xsl:when test="string(text())='Article'">JournalArticle</xsl:when>
-                    <xsl:when test="string(text())='Book'">Book</xsl:when>
-                    <xsl:when test="string(text())='Book chapter'">BookChapter</xsl:when>
+                    <xsl:when test="string(text())='Article'">Text</xsl:when>
+                    <xsl:when test="string(text())='Book'">Text</xsl:when>
+                    <xsl:when test="string(text())='Book chapter'">Text</xsl:when>
                     <xsl:when test="string(text())='Dataset'">Dataset</xsl:when>
                     <xsl:when test="string(text())='Learning Object'">InteractiveResource</xsl:when>
                     <xsl:when test="string(text())='Image'">Image</xsl:when>
@@ -531,8 +526,8 @@
                     <xsl:when test="string(text())='Map'">Model</xsl:when>
                     <xsl:when test="string(text())='Musical Score'">Other</xsl:when>
                     <xsl:when test="string(text())='Plan or blueprint'">Model</xsl:when>
-                    <xsl:when test="string(text())='Preprint'">Preprint</xsl:when>
-                    <xsl:when test="string(text())='Presentation'">Other</xsl:when>
+                    <xsl:when test="string(text())='Preprint'">Text</xsl:when>
+                    <xsl:when test="string(text())='Presentation'">Text</xsl:when>
                     <xsl:when test="string(text())='Recording, acoustical'">Sound</xsl:when>
                     <xsl:when test="string(text())='Recording, musical'">Sound</xsl:when>
                     <xsl:when test="string(text())='Recording, oral'">Sound</xsl:when>
@@ -560,7 +555,7 @@
         resolveUrlToHandle(context, altId) until one is recognized or all have
         been tested.
     -->
-    <xsl:template match="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(contains(., $prefix))]">
+    <xsl:template match="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(starts-with(., concat('http://dx.doi.org/', $prefix)))]">
         <xsl:element name="alternateIdentifier">
             <xsl:if test="@qualifier">
                 <xsl:attribute name="alternateIdentifierType"><xsl:value-of select="@qualifier" /></xsl:attribute>
@@ -609,9 +604,20 @@
         Adds Rights information
     -->
     <xsl:template match="//dspace:field[@mdschema='dc' and @element='rights']">
-        <xsl:element name="rights">
-            <xsl:value-of select="." />
-        </xsl:element>
+        <xsl:choose>
+            <xsl:when test="@qualifier='uri'">
+                <xsl:element name="rights">
+                    <xsl:attribute name="rightsURI">
+                        <xsl:value-of select="." />
+                    </xsl:attribute>
+                </xsl:element>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:element name="rights">
+                    <xsl:value-of select="." />
+                </xsl:element>
+            </xsl:otherwise>
+        </xsl:choose>
     </xsl:template>
 
     <!--
