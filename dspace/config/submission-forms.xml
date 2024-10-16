@@ -1528,6 +1528,33 @@
             </row>
         </form>
 
+        <!-- Datashare License form-->
+        <form name="datashareLicenseForm">
+            <row>
+                <field>
+                    <dc-schema>ds</dc-schema>
+                    <dc-element>license</dc-element>
+                    <dc-qualifier>dropdown-value</dc-qualifier>
+                    <repeatable>false</repeatable>
+                    <label>License:</label>
+                    <input-type value-pairs-name="datashare_license_types">dropdown</input-type>
+                    <hint>Select a license.</hint>
+                    <required>You must choose at least one option.</required>
+                </field>
+            </row>
+            <row>
+                <field>
+                    <dc-schema>ds</dc-schema>
+                    <dc-element>license</dc-element>
+                    <dc-qualifier>rights-text</dc-qualifier>
+                    <label>Rights:</label>
+                    <input-type>textarea</input-type>
+                    <hint>If you have chose Other, then fill in Rights text.</hint>
+                    <required></required>
+                </field>
+            </row>
+        </form>
+
     </form-definitions>
 
 
@@ -2127,6 +2154,29 @@
             <pair>
                 <displayed-value>Other</displayed-value>
                 <stored-value>other</stored-value>
+            </pair>
+
+        </value-pairs>
+
+
+        <!-- Openaire specific value pairs -->
+
+        <value-pairs value-pairs-name="datashare_license_types" dc-term="license">
+
+            <!-- Based on: http://openaire-guidelines-for-literature-repository-managers.readthedocs.io/en/latest/field_licensecondition.html#dc-rightslicensecondition -->
+
+            <pair>
+                <displayed-value>Without Licence</displayed-value>
+                <stored-value>Without Licence</stored-value>
+            </pair>
+            <pair>
+                <displayed-value>Creative Commons Attribution 4.0 International Public License</displayed-value>
+                <stored-value>Creative Commons Attribution 4.0 International Public License</stored-value>
+            </pair>
+            <!-- Add here other licenses -->
+            <pair>
+                <displayed-value>Other</displayed-value>
+                <stored-value>Other</stored-value>
             </pair>
 
         </value-pairs>

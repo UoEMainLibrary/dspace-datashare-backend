@@ -243,4 +243,12 @@ public class SubmissionStepConfig implements Serializable {
     public boolean isMandatory() {
         return mandatory;
     }
+
+    @Override
+    public String toString() {
+        return "SubmissionStepConfig [id=" + id + ", mandatory=" + mandatory + ", heading=" + heading
+                + ", processingClassName=" + processingClassName + ", type=" + type + ", scope=" + scope
+                + ", visibility=" + visibility + ", visibilityOutside=" + visibilityOutside + ", number=" + number
+                + "]";
+    }
 }

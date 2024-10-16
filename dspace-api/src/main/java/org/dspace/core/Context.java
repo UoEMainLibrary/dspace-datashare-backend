@@ -976,4 +976,16 @@ public class Context implements AutoCloseable {
                                                            .getGroupService()
                                                            .findByName(this, Group.ADMIN) : adminGroup;
     }
+
+
+    @Override
+    public String toString() {
+        return "Context [currentUser=" + currentUser + ", currentUserPreviousState=" + currentUserPreviousState
+                + ", currentLocale=" + currentLocale + ", extraLogInfo=" + extraLogInfo + ", ignoreAuth=" + ignoreAuth
+                + ", authStateChangeHistory=" + authStateChangeHistory + ", authStateClassCallHistory="
+                + authStateClassCallHistory + ", specialGroups=" + specialGroups + ", specialGroupsPreviousState="
+                + specialGroupsPreviousState + ", authenticationMethod=" + authenticationMethod + ", events=" + events
+                + ", dispName=" + dispName + ", mode=" + mode + ", readOnlyCache=" + readOnlyCache + ", eventService="
+                + eventService + ", dbConnection=" + dbConnection + ", adminGroup=" + adminGroup + "]";
+    }
 }
