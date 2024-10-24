@@ -1536,7 +1536,7 @@
                     <dc-element>license</dc-element>
                     <dc-qualifier>dropdown-value</dc-qualifier>
                     <repeatable>false</repeatable>
-                    <label>License:</label>
+                    <label>Licence:</label>
                     <input-type value-pairs-name="datashare_license_types">dropdown</input-type>
                     <hint>Select a license.</hint>
                     <required>You must choose at least one option.</required>
