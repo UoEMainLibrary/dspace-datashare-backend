@@ -237,12 +237,11 @@
                     <list>
                         <ref bean="sortScore" />
                         <ref bean="sortTitle" />
+                        <!-- <ref bean="sortDateIssued" /> -->
                         <!-- // DATASHARE - start -->
                         <ref bean="sortDateAccessioned" />
                         <!--  <ref bean="sortDateAvailable" /> -->
                         <ref bean="sortDateEmbargo" />
-                        <!--  <ref bean="sortDateIssued" /> -->
-                        <!-- <ref bean="sortDateAccessioned"/>-->
                         <!-- // DATASHARE - end -->
                     </list>
                 </property>
