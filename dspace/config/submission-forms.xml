@@ -155,9 +155,9 @@
             Funder *****-->
             <row>
                 <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>funder</dc-element>
-                    <dc-qualifier>dropdown-value</dc-qualifier>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>contributor</dc-element>
+                    <dc-qualifier>other</dc-qualifier>
                     <repeatable>true</repeatable>
                     <label>Funder</label>
                     <input-type value-pairs-name="funding_bodies">dropdown</input-type>
@@ -421,25 +421,14 @@
         <form name="datashareLicenseForm">
             <row>
                 <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>license</dc-element>
-                    <dc-qualifier>dropdown-value</dc-qualifier>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>rights</dc-element>
+                    <dc-qualifier></dc-qualifier>
                     <repeatable>false</repeatable>
                     <label>Licence:</label>
                     <input-type value-pairs-name="datashare_license_types">dropdown</input-type>
                     <hint>Select a licence.</hint>
                     <required>You must choose at least one option.</required>
-                </field>
-            </row>
-            <row>
-                <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>license</dc-element>
-                    <dc-qualifier>rights-text</dc-qualifier>
-                    <label>Rights:</label>
-                    <input-type>textarea</input-type>
-                    <hint>If you have chosen Other, then fill in Rights text.</hint>
-                    <required></required>
                 </field>
             </row>
         </form>
@@ -482,9 +471,9 @@
 
             <row>
                 <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>timeperiod</dc-element>
-                    <dc-qualifier>start-date</dc-qualifier>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>coverage</dc-element>
+                    <dc-qualifier>startDate</dc-qualifier>
                     <repeatable>false</repeatable>
                     <label>From: </label>
                     <input-type>date</input-type>
@@ -493,9 +482,9 @@
             </row>
             <row>
                 <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>timeperiod</dc-element>
-                    <dc-qualifier>end-date</dc-qualifier>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>coverage</dc-element>
+                    <dc-qualifier>endDate</dc-qualifier>
                     <repeatable>false</repeatable>
                     <label>To: </label>
                     <input-type>date</input-type>
@@ -510,9 +499,9 @@
         <form name="datashareFunderForm">
             <row>
                 <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>funder</dc-element>
-                    <dc-qualifier>dropdown-value</dc-qualifier>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>contributor</dc-element>
+                    <dc-qualifier>other</dc-qualifier>
                     <repeatable>true</repeatable>
                     <label>Funder</label>
                     <input-type value-pairs-name="funding_bodies">dropdown</input-type>
@@ -523,9 +512,9 @@
             </row>
             <row>
                 <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>funder</dc-element>
-                    <dc-qualifier>text-value</dc-qualifier>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>contributor</dc-element>
+                    <dc-qualifier>other</dc-qualifier>
                     <repeatable>true</repeatable>
                     <label>Funder</label>
                     <input-type>onebox</input-type>

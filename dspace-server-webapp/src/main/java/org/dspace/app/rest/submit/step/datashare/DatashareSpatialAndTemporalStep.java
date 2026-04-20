@@ -91,10 +91,51 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
         try {
             DCInputSet inputConfig = inputReader.getInputsByFormName(config.getId());
             readField(obj, config, data, inputConfig);
+            populateTimePeriodFromTemporal(obj, data);
         } catch (DCInputsReaderException e) {
             log.error(e.getMessage(), e);
         }
         return data;
+    }
+
+    /**
+     * If dc.coverage.temporal exists but dc.coverage.startDate / dc.coverage.endDate are absent,
+     * decode the temporal value and populate the form data so that the Angular form shows the dates.
+     */
+    private void populateTimePeriodFromTemporal(InProgressSubmission obj, DataDescribe data) {
+        boolean hasStartDate = data.getMetadata().containsKey("dc.coverage.startDate");
+        boolean hasEndDate = data.getMetadata().containsKey("dc.coverage.endDate");
+
+        if (hasStartDate && hasEndDate) {
+            return;
+        }
+
+        List<MetadataValue> temporalValues = itemService.getMetadataByMetadataString(
+                obj.getItem(), "dc.coverage.temporal");
+        if (temporalValues == null || temporalValues.isEmpty()) {
+            return;
+        }
+
+        String[] decoded = decodeTimePeriod(temporalValues.get(0).getValue());
+        if (decoded == null) {
+            return;
+        }
+
+        if (!hasStartDate && decoded[0] != null && !decoded[0].isEmpty()) {
+            MetadataValueRest startDto = new MetadataValueRest();
+            startDto.setValue(decoded[0]);
+            List<MetadataValueRest> startList = new ArrayList<>();
+            startList.add(startDto);
+            data.getMetadata().put("dc.coverage.startDate", startList);
+        }
+
+        if (!hasEndDate && decoded[1] != null && !decoded[1].isEmpty()) {
+            MetadataValueRest endDto = new MetadataValueRest();
+            endDto.setValue(decoded[1]);
+            List<MetadataValueRest> endList = new ArrayList<>();
+            endList.add(endDto);
+            data.getMetadata().put("dc.coverage.endDate", endList);
+        }
     }
 
     private void readField(InProgressSubmission obj, SubmissionStepConfig config, DataDescribe data,
@@ -208,11 +249,11 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
             MetadataValue dsTimePeriodEndDateMetadataValue = null;
             MetadataField dcCoverageTemporalMetadataField = metadataFieldService.findByElement(context, "dc",
                     "coverage", "temporal");
-            MetadataField dsTimePeriodStartDateValueField = metadataFieldService.findByElement(context, "ds",
-                    "timeperiod",
-                    "start-date");
-            MetadataField dsTimePeriodEndDateField = metadataFieldService.findByElement(context, "ds", "timeperiod",
-                    "end-date");
+            MetadataField dsTimePeriodStartDateValueField = metadataFieldService.findByElement(context, "dc",
+                    "coverage",
+                    "startDate");
+            MetadataField dsTimePeriodEndDateField = metadataFieldService.findByElement(context, "dc", "coverage",
+                    "endDate");
             for (MetadataValue mv : metadataValues) {
                 log.info("mv.getMetadataField().getID(): " + mv.getMetadataField().getID());
 
@@ -246,6 +287,10 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
                 log.info("encodedTimePeriod: " + encodedTimePeriod);
                 dcCoverageTemporalMetadataValue.setValue(encodedTimePeriod);
                 metadataValueService.update(context, dcCoverageTemporalMetadataValue);
+
+                // Remove the intermediate startDate/endDate values — only dc.coverage.temporal should persist
+                deleteItemMetadataValue(context, source, dsTimePeriodStartDateValueMetadataValue);
+                deleteItemMetadataValue(context, source, dsTimePeriodEndDateMetadataValue);
             }
 
             // Remove the metadata values if the start or end date are not present
@@ -257,12 +302,12 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
 
     /**
      * Encode a start and end date into W3CDTF profile of ISO 8601.
-     * 
+     *
      * @param start Start date.
      * @param end   End date.
      * @return W3CDTF profile of ISO 8601.
      */
-    private String encodeTimePeriod(String start, String end) {
+    static String encodeTimePeriod(String start, String end) {
         String ENCODING_SCHEME = "W3C-DTF";
         String startStr = "";
         String endString = "";
@@ -284,6 +329,33 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
         buf.append(ENCODING_SCHEME);
 
         return buf.toString();
+    }
+
+    /**
+     * Decode a W3CDTF encoded time period string into start and end date components.
+     *
+     * @param temporal Encoded string, e.g. "start=2021; end=2025; scheme=W3C-DTF".
+     * @return String array [startDate, endDate], or null if input is null/empty.
+     */
+    static String[] decodeTimePeriod(String temporal) {
+        if (temporal == null || temporal.isEmpty()) {
+            return null;
+        }
+
+        String startDate = null;
+        String endDate = null;
+
+        String[] tokens = temporal.split(";");
+        for (String token : tokens) {
+            String trimmed = token.trim();
+            if (trimmed.startsWith("start=")) {
+                startDate = trimmed.substring("start=".length());
+            } else if (trimmed.startsWith("end=")) {
+                endDate = trimmed.substring("end=".length());
+            }
+        }
+
+        return new String[]{startDate, endDate};
     }
 
     private void deleteItemMetadataValue(Context context, InProgressSubmission source, MetadataValue mv)
