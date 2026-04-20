@@ -245,4 +245,40 @@ public class DefaultAccessStatusHelper implements AccessStatusHelper {
 
         return embargoDate;
     }
+
+    /**
+     * Calculate the access status for a single bitstream.
+     *
+     * @param context   the DSpace context
+     * @param bitstream the bitstream
+     * @param threshold the embargo threshold date
+     * @return an access status value
+     */
+    @Override
+    public String getAccessStatusFromBitstream(Context context, Bitstream bitstream, Date threshold)
+            throws SQLException {
+        return calculateAccessStatusForDso(context, bitstream, threshold);
+    }
+
+    /**
+     * Retrieve the embargo date for a single bitstream.
+     *
+     * @param context   the DSpace context
+     * @param bitstream the bitstream to check for embargo information
+     * @param threshold the embargo threshold date
+     * @return an embargo date string, or null if no embargo
+     */
+    @Override
+    public String getEmbargoFromBitstream(Context context, Bitstream bitstream, Date threshold)
+            throws SQLException {
+        if (bitstream == null) {
+            return null;
+        }
+        String accessStatus = calculateAccessStatusForDso(context, bitstream, threshold);
+        if (!EMBARGO.equals(accessStatus)) {
+            return null;
+        }
+        Date embargoDate = retrieveShortestEmbargo(context, bitstream);
+        return embargoDate != null ? embargoDate.toString() : null;
+    }
 }

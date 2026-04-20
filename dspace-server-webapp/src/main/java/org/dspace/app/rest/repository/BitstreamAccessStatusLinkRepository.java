@@ -15,10 +15,10 @@ import jakarta.annotation.Nullable;
 import jakarta.servlet.http.HttpServletRequest;
 import org.dspace.access.status.service.AccessStatusService;
 import org.dspace.app.rest.model.AccessStatusRest;
-import org.dspace.app.rest.model.ItemRest;
+import org.dspace.app.rest.model.BitstreamRest;
 import org.dspace.app.rest.projection.Projection;
-import org.dspace.content.Item;
-import org.dspace.content.service.ItemService;
+import org.dspace.content.Bitstream;
+import org.dspace.content.service.BitstreamService;
 import org.dspace.core.Context;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
@@ -27,33 +27,33 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 
 /**
- * Link repository for calculating the access status of an Item
+ * Link repository for calculating the access status of a Bitstream.
  */
-@Component(ItemRest.CATEGORY + "." + ItemRest.PLURAL_NAME + "." + ItemRest.ACCESS_STATUS)
-public class ItemAccessStatusLinkRepository extends AbstractDSpaceRestRepository
+@Component(BitstreamRest.CATEGORY + "." + BitstreamRest.PLURAL_NAME + "." + BitstreamRest.ACCESS_STATUS)
+public class BitstreamAccessStatusLinkRepository extends AbstractDSpaceRestRepository
     implements LinkRestRepository {
 
     @Autowired
-    ItemService itemService;
+    BitstreamService bitstreamService;
 
     @Autowired
     AccessStatusService accessStatusService;
 
-    @PreAuthorize("hasPermission(#itemId, 'ITEM', 'READ')")
+    @PreAuthorize("permitAll()")
     public AccessStatusRest getAccessStatus(@Nullable HttpServletRequest request,
-                                            UUID itemId,
+                                            UUID bitstreamId,
                                             @Nullable Pageable optionalPageable,
                                             Projection projection) {
         try {
             Context context = obtainContext();
-            Item item = itemService.find(context, itemId);
-            if (item == null) {
-                throw new ResourceNotFoundException("No such item: " + itemId);
+            Bitstream bitstream = bitstreamService.find(context, bitstreamId);
+            if (bitstream == null) {
+                throw new ResourceNotFoundException("No such bitstream: " + bitstreamId);
             }
             AccessStatusRest accessStatusRest = new AccessStatusRest();
-            String accessStatus = accessStatusService.getAccessStatus(context, item);
+            String accessStatus = accessStatusService.getAccessStatusFromBitstream(context, bitstream);
             accessStatusRest.setStatus(accessStatus);
-            String embargoDate = accessStatusService.getEmbargoFromItem(context, item);
+            String embargoDate = accessStatusService.getEmbargoFromBitstream(context, bitstream);
             accessStatusRest.setEmbargoDate(embargoDate);
             return accessStatusRest;
         } catch (SQLException e) {
