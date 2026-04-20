@@ -258,7 +258,7 @@
             -->
             <xsl:if test="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(starts-with(., concat('https://doi.org/', $prefix)))]">
                 <xsl:element name="alternateIdentifiers">
-                    <xsl:apply-templates select="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(starts-with(., concat('http://dx.doi.org/', $prefix)))]" />
+                    <xsl:apply-templates select="//dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and not(starts-with(., concat('https://doi.org/', $prefix)))]" />
                 </xsl:element>
             </xsl:if>
 
@@ -327,7 +327,6 @@
             <!--
                 DataCite (19)
                 FundingReference
-                DSpace currently doesn't store FundingReference.
             -->
             <!--
                 DataCite (20)
@@ -346,7 +345,7 @@
     -->
     <xsl:template match="dspace:field[@mdschema='dc' and @element='identifier' and @qualifier and starts-with(., concat('https://doi.org/', $prefix))]">
         <identifier identifierType="DOI">
-            <xsl:value-of select="substring(., 19)"/>
+            <xsl:value-of select="substring(., 17)"/>
         </identifier>
     </xsl:template>
 
@@ -625,7 +624,8 @@
 
     <!--
         DataCite (16)
-        Adds Rights information
+        Adds Rights information.
+        Enhanced to add rightsURI/SPDX attributes for CC-BY-4.0.
     -->
     <xsl:template match="//dspace:field[@mdschema='dc' and @element='rights']">
         <xsl:choose>
@@ -634,6 +634,15 @@
                     <xsl:attribute name="rightsURI">
                         <xsl:value-of select="." />
                     </xsl:attribute>
+                </xsl:element>
+            </xsl:when>
+            <xsl:when test="contains(., 'Creative Commons Attribution 4.0')">
+                <xsl:element name="rights">
+                    <xsl:attribute name="rightsURI">https://creativecommons.org/licenses/by/4.0/</xsl:attribute>
+                    <xsl:attribute name="rightsIdentifier">CC-BY-4.0</xsl:attribute>
+                    <xsl:attribute name="rightsIdentifierScheme">SPDX</xsl:attribute>
+                    <xsl:attribute name="schemeURI">https://spdx.org/licenses/</xsl:attribute>
+                    <xsl:value-of select="." />
                 </xsl:element>
             </xsl:when>
             <xsl:otherwise>

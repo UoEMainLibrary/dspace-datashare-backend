@@ -7,10 +7,8 @@
  */
 package org.dspace.app.rest.submit.step.datashare;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
@@ -30,12 +28,9 @@ import org.dspace.app.util.DCInputsReader;
 import org.dspace.app.util.DCInputsReaderException;
 import org.dspace.app.util.SubmissionStepConfig;
 import org.dspace.content.InProgressSubmission;
-import org.dspace.content.MetadataField;
 import org.dspace.content.MetadataValue;
 import org.dspace.content.factory.ContentServiceFactory;
 import org.dspace.content.service.ItemService;
-import org.dspace.content.service.MetadataFieldService;
-import org.dspace.content.service.MetadataValueService;
 import org.dspace.core.Context;
 import org.dspace.core.Utils;
 import org.dspace.services.ConfigurationService;
@@ -66,10 +61,6 @@ public class DatashareFunderStep extends AbstractProcessingStep {
             .getConfigurationService();
 
     private ItemService itemService = ContentServiceFactory.getInstance().getItemService();
-
-    private MetadataFieldService metadataFieldService = ContentServiceFactory.getInstance().getMetadataFieldService();
-
-    private MetadataValueService metadataValueService = ContentServiceFactory.getInstance().getMetadataValueService();
 
     public DatashareFunderStep() throws DCInputsReaderException {
         inputReader = new DCInputsReader();
@@ -190,116 +181,6 @@ public class DatashareFunderStep extends AbstractProcessingStep {
                         + inputConfig.getFormName());
             }
         }
-
-        if ("remove".equals(op.getOp()) || "add".equals(op.getOp()) || "replace".equals(op.getOp())) {
-            List<MetadataValue> metadataValues = source.getItem().getMetadata();
-
-            MetadataField dcContributorOtherMetadataField = metadataFieldService.findByElement(context, "dc",
-                    "contributor", "other");
-            MetadataField dsFunderDropdownValueField = metadataFieldService.findByElement(context, "ds", "funder",
-                    "dropdown-value");
-            MetadataField dsFunderTextField = metadataFieldService.findByElement(context, "ds", "funder",
-                    "text-value");
-
-            // Create arrays to hold the values
-            List<MetadataValue> dcContributorOtherMetadataValues = new ArrayList<MetadataValue>();
-            List<String> dcContributorOtherValues = new ArrayList<String>();
-            List<String> dsFunderDropdownValues = new ArrayList<String>();
-            List<String> dsFunderTextValues = new ArrayList<String>();
-
-            // Loop through all metadata values and populate the arrays
-            for (MetadataValue mv : metadataValues) {
-                String dcContributorOtherValue = null;
-                String dsFunderDropdownValue = null;
-                String dsFunderTextValue = null;
-
-                log.info("mv.getMetadataField().getID(): " + mv.getMetadataField().getID());
-
-                if (dcContributorOtherMetadataField != null
-                        && mv.getMetadataField().getID().equals(dcContributorOtherMetadataField.getID())) {
-                    dcContributorOtherMetadataValues.add(mv);
-                    dcContributorOtherValue = mv.getValue();
-                    dcContributorOtherValues.add(dcContributorOtherValue);
-                    log.info("dcContributorOtherValue: " + dcContributorOtherValue);
-                } else if (dsFunderDropdownValueField != null
-                        && mv.getMetadataField().getID().equals(dsFunderDropdownValueField.getID())) {
-                    dsFunderDropdownValue = mv.getValue();
-                    dsFunderDropdownValues.add(dsFunderDropdownValue);
-                    log.info("dsFunderDropdownValue: " + dsFunderDropdownValue);
-                } else if (dsFunderTextField != null
-                        && mv.getMetadataField().getID().equals(dsFunderTextField.getID())) {
-                    dsFunderTextValue = mv.getValue();
-                    dsFunderTextValues.add(dsFunderTextValue);
-                    log.info("dsFunderTextMetadataValue: " + dsFunderTextValue);
-                }
-            }
-
-            // Update the metadata values for dcContributorOtherMetadataField, adding or
-            // deleting as appropriate.
-            Stream<String> dsFunderStream = Stream.concat(
-                    dsFunderDropdownValues.stream(),
-                    dsFunderTextValues.stream());
-
-            if (dcContributorOtherValues.isEmpty()) {
-
-                dsFunderStream.forEach(funder -> {
-                    try {
-                        MetadataValue dcContributorOtherMetadataValue = metadataValueService.create(context,
-                                source.getItem(),
-                                dcContributorOtherMetadataField);
-
-                        dcContributorOtherMetadataValue.setValue(funder);
-                        metadataValueService.update(context, dcContributorOtherMetadataValue);
-                    } catch (Exception e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                });
-
-            } else {
-                // Add any new values to the dcContributorOtherMetadataField
-                dsFunderStream.filter(dsfunder -> !dcContributorOtherValues.contains(dsfunder))
-                        .forEach(funder -> {
-                            try {
-                                MetadataValue dcContributorOtherMetadataValue = metadataValueService.create(context,
-                                        source.getItem(),
-                                        dcContributorOtherMetadataField);
-                                dcContributorOtherMetadataValue.setValue(funder);
-                                metadataValueService.update(context, dcContributorOtherMetadataValue);
-                            } catch (Exception e) {
-                                // TODO Auto-generated catch block
-                                e.printStackTrace();
-                            }
-                        });
-                // Remove any existing values from the dcContributorOtherMetadataField not in
-                // dsFunderDropdownValues or dsFunderTextValues.
-                dcContributorOtherValues.stream()
-                        .filter(dcContributorOtherValue -> !dsFunderDropdownValues.contains(dcContributorOtherValue))
-                        .filter(dcContributorOtherValue -> !dsFunderTextValues.contains(dcContributorOtherValue))
-                        .flatMap(dcContributorOtherValue -> dcContributorOtherMetadataValues.stream()
-                                .filter(dcContributorOtherMetadataValue -> dcContributorOtherMetadataValue.getValue()
-                                        .equals(dcContributorOtherValue)))
-                        .forEach(dcContributorOtherMetadataValue -> {
-                            try {
-                                deleteItemMetadataValue(context, source, dcContributorOtherMetadataValue);
-                            } catch (SQLException e) {
-                                // TODO Auto-generated catch block
-                                e.printStackTrace();
-                            }
-                        });
-
-            }
-        }
-    }
-
-    private void deleteItemMetadataValue(Context context, InProgressSubmission source, MetadataValue mv)
-            throws SQLException {
-        // Remove metadata value association before deletion
-        List<MetadataValue> itemMetadata = source.getItem().getMetadata();
-        itemMetadata.remove(mv);
-        source.getItem().setMetadata(itemMetadata);
-        // Delete the metadata value
-        metadataValueService.delete(context, mv);
     }
 
     private List<String> getInputFieldsName(DCInputSet inputConfig, String configId) throws DCInputsReaderException {
