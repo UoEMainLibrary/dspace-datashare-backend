@@ -431,6 +431,18 @@
                     <required>You must choose at least one option.</required>
                 </field>
             </row>
+            <row>
+                <field>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>rights</dc-element>
+                    <dc-qualifier></dc-qualifier>
+                    <repeatable>false</repeatable>
+                    <label>Rights</label>
+                    <input-type>textarea</input-type>
+                    <hint>Please indicate any copyright held in the item or any terms for re-use. Example: Copyright, University of Edinburgh. Example: Authors who publish using this dataset are required to add the data creators as co-authors.</hint>
+                    <required></required>
+                </field>
+            </row>
         </form>
 
         <!-- Datashare Spatial and Temporal form-->
