@@ -155,9 +155,9 @@
             Funder *****-->
             <row>
                 <field>
-                    <dc-schema>dc</dc-schema>
-                    <dc-element>contributor</dc-element>
-                    <dc-qualifier>other</dc-qualifier>
+                    <dc-schema>ds</dc-schema>
+                    <dc-element>funder</dc-element>
+                    <dc-qualifier>dropdown-value</dc-qualifier>
                     <repeatable>true</repeatable>
                     <label>Funder</label>
                     <input-type value-pairs-name="funding_bodies">dropdown</input-type>
@@ -437,7 +437,7 @@
                     <dc-element>rights</dc-element>
                     <dc-qualifier></dc-qualifier>
                     <repeatable>false</repeatable>
-                    <label>Rights</label>
+                    <label>Rights:</label>
                     <input-type>textarea</input-type>
                     <hint>Please indicate any copyright held in the item or any terms for re-use. Example: Copyright, University of Edinburgh. Example: Authors who publish using this dataset are required to add the data creators as co-authors.</hint>
                     <required></required>
