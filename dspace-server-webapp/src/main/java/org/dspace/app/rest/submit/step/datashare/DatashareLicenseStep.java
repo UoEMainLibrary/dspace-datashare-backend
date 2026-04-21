@@ -9,7 +9,6 @@ package org.dspace.app.rest.submit.step.datashare;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,12 +30,9 @@ import org.dspace.app.util.DCInputsReader;
 import org.dspace.app.util.DCInputsReaderException;
 import org.dspace.app.util.SubmissionStepConfig;
 import org.dspace.content.InProgressSubmission;
-import org.dspace.content.MetadataField;
 import org.dspace.content.MetadataValue;
 import org.dspace.content.factory.ContentServiceFactory;
 import org.dspace.content.service.ItemService;
-import org.dspace.content.service.MetadataFieldService;
-import org.dspace.content.service.MetadataValueService;
 import org.dspace.core.Context;
 import org.dspace.core.Utils;
 import org.dspace.license.factory.LicenseServiceFactory;
@@ -72,10 +68,6 @@ public class DatashareLicenseStep extends AbstractProcessingStep {
             .getCreativeCommonsService();
 
     private ItemService itemService = ContentServiceFactory.getInstance().getItemService();
-
-    private MetadataFieldService metadataFieldService = ContentServiceFactory.getInstance().getMetadataFieldService();
-
-    private MetadataValueService metadataValueService = ContentServiceFactory.getInstance().getMetadataValueService();
 
 
     public DatashareLicenseStep() throws DCInputsReaderException {
@@ -202,93 +194,23 @@ public class DatashareLicenseStep extends AbstractProcessingStep {
         }
 
         if ("remove".equals(op.getOp()) || "add".equals(op.getOp()) || "replace".equals(op.getOp())) {
-            List<MetadataValue> metadataValues = source.getItem().getMetadata();
+            // Check dc.rights value and manage CC license bundle accordingly
+            List<MetadataValue> rightsValues = itemService.getMetadataByMetadataString(source.getItem(), "dc.rights");
+            String dcRightsValue = (rightsValues != null && !rightsValues.isEmpty())
+                    ? rightsValues.get(0).getValue() : null;
 
-            MetadataValue dcRightsMetadataValue = null;
-            MetadataValue dsLicenseDropdownValueMetadataValue = null;
-            MetadataValue dsRightsTextMetadataValue = null;
-            MetadataField dcRightsMetadataField = metadataFieldService.findByElement(context, "dc", "rights", "");
-            MetadataField dsLicenseDropdownValueField = metadataFieldService.findByElement(context, "ds", "license",
-                    "dropdown-value");
-            MetadataField dsLicenseRightsTextField = metadataFieldService.findByElement(context, "ds", "license",
-                    "rights-text");
-            for (MetadataValue mv : metadataValues) {
-                log.info("mv.getMetadataField().getID(): " + mv.getMetadataField().getID());
-
-                if (dcRightsMetadataField != null
-                    && mv.getMetadataField().getID().equals(dcRightsMetadataField.getID())) {
-                    dcRightsMetadataValue = mv;
-                    log.info("dcRightsMetadataValue: " + dcRightsMetadataValue.getValue());
-                } else if (dsLicenseDropdownValueField != null
-                        && mv.getMetadataField().getID().equals(dsLicenseDropdownValueField.getID())) {
-                    dsLicenseDropdownValueMetadataValue = mv;
-                    log.info("dsLicenseDropdownValueMetadataValue: " + dsLicenseDropdownValueMetadataValue.getValue());
-                } else if (dsLicenseRightsTextField != null
-                        && mv.getMetadataField().getID().equals(dsLicenseRightsTextField.getID())) {
-                    dsRightsTextMetadataValue = mv;
-                    log.info("dsRightsTextMetadataValue: " + dsRightsTextMetadataValue.getValue());
-                }
-            }
-            log.info("dcRightsMetadataValue: " + dcRightsMetadataValue);
-            log.info("dsRightsTextMetadataValue: " + dsRightsTextMetadataValue);
-            log.info("dsLicenseDropdownValueMetadataValue: " + dsLicenseDropdownValueMetadataValue);
-
-            MetadataField metadataField = metadataFieldService.findByElement(context, "dc", "rights", "");
-            if (dcRightsMetadataValue == null) {
-                dcRightsMetadataValue = metadataValueService.create(context, source.getItem(), metadataField);
-            }
-            if (dsLicenseDropdownValueMetadataValue != null
-                    && !dsLicenseDropdownValueMetadataValue.getValue().equals("Other")) {
-                dcRightsMetadataValue.setValue(dsLicenseDropdownValueMetadataValue.getValue());
-                metadataValueService.update(context, dcRightsMetadataValue);
-                if (dsRightsTextMetadataValue != null) {
-                    deleteItemMetadataValue(context, source, dsRightsTextMetadataValue);
-                }
-            }
-            if (dsLicenseDropdownValueMetadataValue != null
-                    && dsLicenseDropdownValueMetadataValue.getValue().equals("Other")) {
-                String rightsText = dsRightsTextMetadataValue == null
-                        || StringUtils.isBlank(dsRightsTextMetadataValue.getValue()) ? ""
-                                : dsRightsTextMetadataValue.getValue();
-
-                dcRightsMetadataValue.setValue(rightsText);
-                metadataValueService.update(context, dcRightsMetadataValue);
-            }
-
-            if (dsLicenseDropdownValueMetadataValue == null) {
-
-                if (dsRightsTextMetadataValue != null) {
-                    deleteItemMetadataValue(context, source, dsRightsTextMetadataValue);
-                }
-                if (dcRightsMetadataValue != null) {
-                    deleteItemMetadataValue(context, source, dcRightsMetadataValue);
-                }
-            }
-
-            if (dcRightsMetadataValue != null && dcRightsMetadataValue.getValue()
+            if (dcRightsValue != null && dcRightsValue
                     .equals("Creative Commons Attribution 4.0 International Public License")) {
                 setCCLicense(context, source);
             } else {
                 removeCCLicense(context, source);
             }
-
         }
-    }
-
-    private void deleteItemMetadataValue(Context context, InProgressSubmission source, MetadataValue mv)
-            throws SQLException {
-        // Remove metadata value association before deletion
-        List<MetadataValue> itemMetadata = source.getItem().getMetadata();
-        itemMetadata.remove(mv);
-        source.getItem().setMetadata(itemMetadata);
-        // Delete the metadata value
-        metadataValueService.delete(context, mv);
     }
 
     private void setCCLicense(Context context, InProgressSubmission source) {
         try {
-            creativeCommonsService.setLicense(context, source.getItem(),
-                    new FileInputStream(CREATIVE_COMMONS_BY_LICENCE_FILE),
+            creativeCommonsService.setLicense(context, source.getItem(), new FileInputStream(CREATIVE_COMMONS_BY_LICENCE_FILE),
                     "text/plain");
         } catch (Exception e) {
             log.error(e.getMessage(), e);
