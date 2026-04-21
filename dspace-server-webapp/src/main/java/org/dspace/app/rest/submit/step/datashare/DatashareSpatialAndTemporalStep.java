@@ -9,7 +9,6 @@ package org.dspace.app.rest.submit.step.datashare;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,12 +30,10 @@ import org.dspace.app.util.DCInputsReader;
 import org.dspace.app.util.DCInputsReaderException;
 import org.dspace.app.util.SubmissionStepConfig;
 import org.dspace.content.InProgressSubmission;
-import org.dspace.content.MetadataField;
+import org.dspace.content.Item;
 import org.dspace.content.MetadataValue;
 import org.dspace.content.factory.ContentServiceFactory;
 import org.dspace.content.service.ItemService;
-import org.dspace.content.service.MetadataFieldService;
-import org.dspace.content.service.MetadataValueService;
 import org.dspace.core.Context;
 import org.dspace.core.Utils;
 import org.dspace.license.factory.LicenseServiceFactory;
@@ -73,10 +70,6 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
             .getCreativeCommonsService();
 
     private ItemService itemService = ContentServiceFactory.getInstance().getItemService();
-
-    private MetadataFieldService metadataFieldService = ContentServiceFactory.getInstance().getMetadataFieldService();
-
-    private MetadataValueService metadataValueService = ContentServiceFactory.getInstance().getMetadataValueService();
 
     public DatashareSpatialAndTemporalStep() throws DCInputsReaderException {
         inputReader = new DCInputsReader();
@@ -216,6 +209,12 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
     @Override
     public void doPatchProcessing(Context context, HttpServletRequest currentRequest, InProgressSubmission source,
             Operation op, SubmissionStepConfig stepConf) throws Exception {
+
+        // Hydrate: if dc.coverage.temporal is stored but the individual date fields are absent,
+        // decode temporal back into dc.coverage.startDate / dc.coverage.endDate so that
+        // PATCH replace/remove operations can find the metadata values on the item.
+        hydrateTimePeriodFields(context, source);
+
         String[] pathParts = op.getPath().substring(1).split("/");
         DCInputSet inputConfig = inputReader.getInputsByFormName(stepConf.getId());
         if ("remove".equals(op.getOp()) && pathParts.length < 3) {
@@ -243,61 +242,70 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
         }
 
         if ("remove".equals(op.getOp()) || "add".equals(op.getOp()) || "replace".equals(op.getOp())) {
-            List<MetadataValue> metadataValues = source.getItem().getMetadata();
+            List<MetadataValue> startDates = itemService.getMetadataByMetadataString(
+                    source.getItem(), "dc.coverage.startDate");
+            List<MetadataValue> endDates = itemService.getMetadataByMetadataString(
+                    source.getItem(), "dc.coverage.endDate");
 
-            MetadataValue dcCoverageTemporalMetadataValue = null;
-            MetadataValue dsTimePeriodStartDateValueMetadataValue = null;
-            MetadataValue dsTimePeriodEndDateMetadataValue = null;
-            MetadataField dcCoverageTemporalMetadataField = metadataFieldService.findByElement(context, "dc",
-                    "coverage", "temporal");
-            MetadataField dsTimePeriodStartDateValueField = metadataFieldService.findByElement(context, "dc",
-                    "coverage",
-                    "startDate");
-            MetadataField dsTimePeriodEndDateField = metadataFieldService.findByElement(context, "dc", "coverage",
-                    "endDate");
-            for (MetadataValue mv : metadataValues) {
-                log.info("mv.getMetadataField().getID(): " + mv.getMetadataField().getID());
-
-                if (dcCoverageTemporalMetadataField != null
-                        && mv.getMetadataField().getID().equals(dcCoverageTemporalMetadataField.getID())) {
-                    dcCoverageTemporalMetadataValue = mv;
-                    log.info("dcCoverageTemporalMetadataValue: " + dcCoverageTemporalMetadataValue.getValue());
-                } else if (dsTimePeriodStartDateValueField != null
-                        && mv.getMetadataField().getID().equals(dsTimePeriodStartDateValueField.getID())) {
-                    dsTimePeriodStartDateValueMetadataValue = mv;
-                    log.info("dsTimePeriodStartDateValueMetadataValue: "
-                            + dsTimePeriodStartDateValueMetadataValue.getValue());
-                } else if (dsTimePeriodEndDateField != null
-                        && mv.getMetadataField().getID().equals(dsTimePeriodEndDateField.getID())) {
-                    dsTimePeriodEndDateMetadataValue = mv;
-                    log.info("dsTimePeriodEndDateMetadataValue: " + dsTimePeriodEndDateMetadataValue.getValue());
-                }
-            }
-            log.info("dcCoverageTemporalMetadataValue: " + dcCoverageTemporalMetadataValue);
-            log.info("dsTimePeriodEndDateMetadataValue: " + dsTimePeriodEndDateMetadataValue);
-            log.info("dsTimePeriodStartDateValueMetadataValue: " + dsTimePeriodStartDateValueMetadataValue);
-
-            if (dcCoverageTemporalMetadataValue == null) {
-                dcCoverageTemporalMetadataValue = metadataValueService.create(context, source.getItem(),
-                        dcCoverageTemporalMetadataField);
-            }
-
-            if (dsTimePeriodStartDateValueMetadataValue != null && dsTimePeriodEndDateMetadataValue != null) {
-                String encodedTimePeriod = encodeTimePeriod(dsTimePeriodStartDateValueMetadataValue.getValue(),
-                        dsTimePeriodEndDateMetadataValue.getValue());
+            if (!startDates.isEmpty() && !endDates.isEmpty()) {
+                String encodedTimePeriod = encodeTimePeriod(
+                        startDates.get(0).getValue(), endDates.get(0).getValue());
                 log.info("encodedTimePeriod: " + encodedTimePeriod);
-                dcCoverageTemporalMetadataValue.setValue(encodedTimePeriod);
-                metadataValueService.update(context, dcCoverageTemporalMetadataValue);
 
-                // Remove the intermediate startDate/endDate values — only dc.coverage.temporal should persist
-                deleteItemMetadataValue(context, source, dsTimePeriodStartDateValueMetadataValue);
-                deleteItemMetadataValue(context, source, dsTimePeriodEndDateMetadataValue);
-            }
+                // Use itemService to ensure the item's in-memory metadata list stays in sync
+                itemService.clearMetadata(context, source.getItem(),
+                        "dc", "coverage", "temporal", Item.ANY);
+                itemService.addMetadata(context, source.getItem(),
+                        "dc", "coverage", "temporal", null, encodedTimePeriod);
 
-            // Remove the metadata values if the start or end date are not present
-            if (dsTimePeriodStartDateValueMetadataValue == null || dsTimePeriodEndDateMetadataValue == null) {
-                deleteItemMetadataValue(context, source, dcCoverageTemporalMetadataValue);
+                itemService.clearMetadata(context, source.getItem(),
+                        "dc", "coverage", "startDate", Item.ANY);
+                itemService.clearMetadata(context, source.getItem(),
+                        "dc", "coverage", "endDate", Item.ANY);
+            } else {
+                // Incomplete date pair — remove any stale temporal encoding
+                itemService.clearMetadata(context, source.getItem(),
+                        "dc", "coverage", "temporal", Item.ANY);
             }
+        }
+    }
+
+    /**
+     * If dc.coverage.temporal is stored but dc.coverage.startDate / dc.coverage.endDate are absent,
+     * decode the temporal value and recreate the individual date fields on the item.
+     * This allows subsequent PATCH replace/remove operations to find the metadata values.
+     */
+    private void hydrateTimePeriodFields(Context context, InProgressSubmission source) throws Exception {
+        List<MetadataValue> startDates = itemService.getMetadataByMetadataString(
+                source.getItem(), "dc.coverage.startDate");
+        List<MetadataValue> endDates = itemService.getMetadataByMetadataString(
+                source.getItem(), "dc.coverage.endDate");
+
+        if (!startDates.isEmpty() && !endDates.isEmpty()) {
+            return; // Both date fields already exist — nothing to hydrate
+        }
+
+        List<MetadataValue> temporalValues = itemService.getMetadataByMetadataString(
+                source.getItem(), "dc.coverage.temporal");
+        if (temporalValues.isEmpty()) {
+            return; // No temporal to decode
+        }
+
+        String[] decoded = decodeTimePeriod(temporalValues.get(0).getValue());
+        if (decoded == null) {
+            return;
+        }
+
+        // Remove temporal, recreate individual date fields
+        itemService.clearMetadata(context, source.getItem(), "dc", "coverage", "temporal", Item.ANY);
+
+        if (decoded[0] != null && !decoded[0].isEmpty()) {
+            itemService.addMetadata(context, source.getItem(),
+                    "dc", "coverage", "startDate", null, decoded[0]);
+        }
+        if (decoded[1] != null && !decoded[1].isEmpty()) {
+            itemService.addMetadata(context, source.getItem(),
+                    "dc", "coverage", "endDate", null, decoded[1]);
         }
     }
 
@@ -357,16 +365,6 @@ public class DatashareSpatialAndTemporalStep extends AbstractProcessingStep {
         }
 
         return new String[]{startDate, endDate};
-    }
-
-    private void deleteItemMetadataValue(Context context, InProgressSubmission source, MetadataValue mv)
-            throws SQLException {
-        // Remove metadata value association before deletion
-        List<MetadataValue> itemMetadata = source.getItem().getMetadata();
-        itemMetadata.remove(mv);
-        source.getItem().setMetadata(itemMetadata);
-        // Delete the metadata value
-        metadataValueService.delete(context, mv);
     }
 
     private void setCCLicense(Context context, InProgressSubmission source) {

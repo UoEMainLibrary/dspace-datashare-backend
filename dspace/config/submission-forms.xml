@@ -155,9 +155,9 @@
             Funder *****-->
             <row>
                 <field>
-                    <dc-schema>ds</dc-schema>
-                    <dc-element>funder</dc-element>
-                    <dc-qualifier>dropdown-value</dc-qualifier>
+                    <dc-schema>dc</dc-schema>
+                    <dc-element>contributor</dc-element>
+                    <dc-qualifier>other</dc-qualifier>
                     <repeatable>true</repeatable>
                     <label>Funder</label>
                     <input-type value-pairs-name="funding_bodies">dropdown</input-type>
