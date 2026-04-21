@@ -100,6 +100,7 @@ public class BitstreamMatcher {
      */
     public static Matcher<? super Object> matchFullEmbeds() {
         return matchEmbeds(
+                "accessStatus",
                 "bundle",
                 "format",
                 "thumbnail"
@@ -111,6 +112,7 @@ public class BitstreamMatcher {
      */
     public static Matcher<? super Object> matchLinks(UUID uuid) {
         return HalMatcher.matchLinks(REST_SERVER_URL + "core/bitstreams/" + uuid,
+                "accessStatus",
                 "bundle",
                 "content",
                 "format",
