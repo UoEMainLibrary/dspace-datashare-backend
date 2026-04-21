@@ -21,8 +21,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
-import javax.servlet.http.HttpServletRequest;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.codec.CharEncoding;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -58,12 +58,14 @@ import org.dspace.statistics.export.service.FailedOpenURLTrackerService;
 import org.dspace.usage.UsageEvent;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * Test class for the IrusExportUsageEventListener
  */
 //@RunWith(MockitoJUnitRunner.class)
+@Ignore("IRUS No longer used.")
 public class ITIrusExportUsageEventListener extends AbstractIntegrationTestWithDatabase {
 
     private static final Logger log = LogManager.getLogger();

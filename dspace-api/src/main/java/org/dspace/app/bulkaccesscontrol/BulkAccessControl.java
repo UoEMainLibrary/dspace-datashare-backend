@@ -416,7 +416,7 @@ public class BulkAccessControl extends DSpaceRunnable<BulkAccessControlScriptCon
         discoverQuery.setQuery(query);
         discoverQuery.setStart(start);
         discoverQuery.setMaxResults(limit);
-
+        discoverQuery.setSortField("search.resourceid", DiscoverQuery.SORT_ORDER.asc);
         return discoverQuery;
     }
 
@@ -464,7 +464,7 @@ public class BulkAccessControl extends DSpaceRunnable<BulkAccessControlScriptCon
             .forEach(accessCondition -> createResourcePolicy(item, accessCondition,
                 itemAccessConditions.get(accessCondition.getName())));
 
-        itemService.adjustItemPolicies(context, item, item.getOwningCollection());
+        itemService.adjustItemPolicies(context, item, item.getOwningCollection(), false);
     }
 
     /**

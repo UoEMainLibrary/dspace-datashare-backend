@@ -10,6 +10,7 @@ package org.dspace.access.status;
 import java.sql.SQLException;
 import java.util.Date;
 
+import org.dspace.content.Bitstream;
 import org.dspace.content.Item;
 import org.dspace.core.Context;
 
@@ -22,9 +23,44 @@ public interface AccessStatusHelper {
      *
      * @param context the DSpace context
      * @param item    the item
+     * @param threshold the embargo threshold date
      * @return an access status value
      * @throws SQLException An exception that provides information on a database access error or other errors.
      */
     public String getAccessStatusFromItem(Context context, Item item, Date threshold)
         throws SQLException;
+
+    /**
+     * Retrieve embargo information for the item
+     *
+     * @param context the DSpace context
+     * @param item the item to check for embargo information
+     * @param threshold the embargo threshold date
+     * @return an embargo date
+     * @throws SQLException An exception that provides information on a database access error or other errors.
+     */
+    public String getEmbargoFromItem(Context context, Item item, Date threshold) throws SQLException;
+
+    /**
+     * Calculate the access status for a bitstream.
+     *
+     * @param context   the DSpace context
+     * @param bitstream the bitstream
+     * @param threshold the embargo threshold date
+     * @return an access status value
+     * @throws SQLException An exception that provides information on a database access error or other errors.
+     */
+    public String getAccessStatusFromBitstream(Context context, Bitstream bitstream, Date threshold)
+        throws SQLException;
+
+    /**
+     * Retrieve embargo information for a bitstream.
+     *
+     * @param context   the DSpace context
+     * @param bitstream the bitstream to check for embargo information
+     * @param threshold the embargo threshold date
+     * @return an embargo date string
+     * @throws SQLException An exception that provides information on a database access error or other errors.
+     */
+    public String getEmbargoFromBitstream(Context context, Bitstream bitstream, Date threshold) throws SQLException;
 }

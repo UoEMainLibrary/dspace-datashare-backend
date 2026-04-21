@@ -26,11 +26,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.time.Period;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.matchers.JsonPathMatchers;
 import org.apache.commons.codec.CharEncoding;
 import org.apache.commons.io.IOUtils;
+import org.dspace.app.ldn.NotifyServiceEntity;
+import org.dspace.app.ldn.model.Notification;
 import org.dspace.app.rest.matcher.AppliedFilterMatcher;
 import org.dspace.app.rest.matcher.FacetEntryMatcher;
 import org.dspace.app.rest.matcher.FacetValueMatcher;
@@ -49,6 +56,8 @@ import org.dspace.builder.CommunityBuilder;
 import org.dspace.builder.EPersonBuilder;
 import org.dspace.builder.GroupBuilder;
 import org.dspace.builder.ItemBuilder;
+import org.dspace.builder.LDNMessageBuilder;
+import org.dspace.builder.NotifyServiceBuilder;
 import org.dspace.builder.PoolTaskBuilder;
 import org.dspace.builder.SupervisionOrderBuilder;
 import org.dspace.builder.WorkflowItemBuilder;
@@ -69,6 +78,7 @@ import org.dspace.services.factory.DSpaceServicesFactory;
 import org.dspace.supervision.SupervisionOrder;
 import org.dspace.xmlworkflow.storedcomponents.ClaimedTask;
 import org.dspace.xmlworkflow.storedcomponents.XmlWorkflowItem;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -84,6 +94,31 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
     @Autowired
     ChoiceAuthorityService choiceAuthorityService;
+
+    /**
+     * This field has been created to easily modify the tests when updating the defaultConfiguration's sidebar facets
+     */
+    // DATASHARE - added dateAccessioned and dateEmbargo facets
+    List<Matcher<? super Object>> customSidebarFacets = List.of(
+        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date")
+    );
+
+    /**
+     * This field has been created to easily modify the tests when updating the defaultConfiguration's search filters
+     */
+    // DATASHARE - added dateAccessioned and dateEmbargo search filters
+    List<Matcher<? super Object>> customSearchFilters = List.of(
+        SearchFilterMatcher.dateAccessionedFilter(),
+        SearchFilterMatcher.dateEmbargoFilter()
+    );
+
+    /**
+     * This field has been created to easily modify the tests when updating the defaultConfiguration's sort fields
+     */
+    // DATASHARE - added dateEmbargo sort (dateAccessioned already in standard list)
+    List<Matcher<? super Object>> customSortFields = List.of(
+    );
 
     @Test
     public void rootDiscoverTest() throws Exception {
@@ -105,6 +140,14 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
     @Test
     public void discoverFacetsTestWithoutParameters() throws Exception {
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
 
         //When we call this facets endpoint
         getClient().perform(get("/api/discover/facets"))
@@ -116,13 +159,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 //There needs to be a self link to this endpoint
                 .andExpect(jsonPath("$._links.self.href", containsString("api/discover/facets")))
                 //We have 4 facets in the default configuration, they need to all be present in the embedded section
-                .andExpect(jsonPath("$._embedded.facets", containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)))
-        );
+                .andExpect(jsonPath("$._embedded.facets", containsInAnyOrder(allExpectedSidebarFacets)));
     }
 
     @Test
@@ -266,7 +303,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                    .andExpect(status().isOk())
                    //The type needs to be 'discover'
                    .andExpect(jsonPath("$.type", is("discover")))
-                   //The name of the facet needs to be seubject, because that's what we called
+                   //The name of the facet needs to be author, because that's what we called
                    .andExpect(jsonPath("$.name", is("author")))
                    //Because we've constructed such a structure so that we have more than 2 (size) subjects, there
                    // needs to be a next link
@@ -1194,6 +1231,36 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
     @Test
     public void discoverSearchTest() throws Exception {
+        List<Matcher<? super Object>> allExpectedSearchFilters = new ArrayList<>(customSearchFilters);
+        allExpectedSearchFilters.addAll(List.of(
+            SearchFilterMatcher.titleFilter(),
+            SearchFilterMatcher.authorFilter(),
+            SearchFilterMatcher.subjectFilter(),
+            SearchFilterMatcher.dateIssuedFilter(),
+            SearchFilterMatcher.hasContentInOriginalBundleFilter(),
+            SearchFilterMatcher.hasFileNameInOriginalBundleFilter(),
+            SearchFilterMatcher.hasFileDescriptionInOriginalBundleFilter(),
+            SearchFilterMatcher.entityTypeFilter(),
+            SearchFilterMatcher.isAuthorOfPublicationRelation(),
+            SearchFilterMatcher.isProjectOfPublicationRelation(),
+            SearchFilterMatcher.isOrgUnitOfPublicationRelation(),
+            SearchFilterMatcher.isPublicationOfJournalIssueRelation(),
+            SearchFilterMatcher.isJournalOfPublicationRelation()
+        ));
+
+        List<Matcher<? super Object>> allExpectedSortFields = new ArrayList<>(List.of(
+            SortOptionMatcher.sortOptionMatcher(
+                "score", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
+            SortOptionMatcher.sortOptionMatcher(
+                "dc.title", DiscoverySortFieldConfiguration.SORT_ORDER.asc.name()),
+            SortOptionMatcher.sortOptionMatcher(
+                "dc.date.issued", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
+            SortOptionMatcher.sortOptionMatcher(
+                "dc.date.accessioned", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
+            // DATASHARE - added dateEmbargo sort
+            SortOptionMatcher.sortOptionMatcher(
+                "dc.date.embargo", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name())
+        ));
 
         //When calling this root endpoint
         getClient().perform(get("/api/discover/search"))
@@ -1208,32 +1275,9 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                    .andExpect(jsonPath("$._links.self.href", containsString("api/discover/search")))
                    //There needs to be a section where these filters as specified as they're the default filters
                    // given in the configuration
-                   .andExpect(jsonPath("$.filters", containsInAnyOrder(
-                       SearchFilterMatcher.titleFilter(),
-                       SearchFilterMatcher.authorFilter(),
-                       SearchFilterMatcher.subjectFilter(),
-                       SearchFilterMatcher.dateIssuedFilter(),
-                       SearchFilterMatcher.hasContentInOriginalBundleFilter(),
-                       SearchFilterMatcher.hasFileNameInOriginalBundleFilter(),
-                       SearchFilterMatcher.hasFileDescriptionInOriginalBundleFilter(),
-                       SearchFilterMatcher.entityTypeFilter(),
-                       SearchFilterMatcher.isAuthorOfPublicationRelation(),
-                       SearchFilterMatcher.isProjectOfPublicationRelation(),
-                       SearchFilterMatcher.isOrgUnitOfPublicationRelation(),
-                       SearchFilterMatcher.isPublicationOfJournalIssueRelation(),
-                       SearchFilterMatcher.isJournalOfPublicationRelation()
-                   )))
+                   .andExpect(jsonPath("$.filters", containsInAnyOrder(allExpectedSearchFilters)))
                    //These sortOptions need to be present as it's the default in the configuration
-                   .andExpect(jsonPath("$.sortOptions", contains(
-                       SortOptionMatcher.sortOptionMatcher(
-                                         "score", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
-                       SortOptionMatcher.sortOptionMatcher(
-                                         "dc.title", DiscoverySortFieldConfiguration.SORT_ORDER.asc.name()),
-                       SortOptionMatcher.sortOptionMatcher(
-                                         "dc.date.issued", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
-                       SortOptionMatcher.sortOptionMatcher(
-                                         "dc.date.accessioned", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name())
-                   )));
+                   .andExpect(jsonPath("$.sortOptions", contains(allExpectedSortFields)));
     }
 
     @Test
@@ -1249,11 +1293,11 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                          DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
                        SortOptionMatcher.sortOptionMatcher("organization.legalName",
                                          DiscoverySortFieldConfiguration.SORT_ORDER.asc.name()),
-                       SortOptionMatcher.sortOptionMatcher("organisation.address.addressCountry",
+                       SortOptionMatcher.sortOptionMatcher("organization.address.addressCountry",
                                          DiscoverySortFieldConfiguration.SORT_ORDER.asc.name()),
-                       SortOptionMatcher.sortOptionMatcher("organisation.address.addressLocality",
+                       SortOptionMatcher.sortOptionMatcher("organization.address.addressLocality",
                                          DiscoverySortFieldConfiguration.SORT_ORDER.asc.name()),
-                       SortOptionMatcher.sortOptionMatcher("organisation.foundingDate",
+                       SortOptionMatcher.sortOptionMatcher("organization.foundingDate",
                                          DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
                        SortOptionMatcher.sortOptionMatcher("dc.date.accessioned",
                                          DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
@@ -1287,7 +1331,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         getClient().perform(get("/api/discover/search/objects")
-                   .param("sort", "dc.date.accessioned, ASC")
+                   .param("sort", "dc.date.available, ASC")
                    .param("configuration", "workspace"))
                    .andExpect(status().isUnprocessableEntity());
     }
@@ -1337,6 +1381,14 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         //** WHEN **
         //An anonymous user browses this endpoint to find the objects in the system
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects"))
                 //** THEN **
                 //The status has to be 200 OK
@@ -1363,13 +1415,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -1473,6 +1519,14 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         //** WHEN **
         //An anonymous user browses this endpoint to find the objects in the system
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(true),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects"))
                 //** THEN **
                 //The status has to be 200 OK
@@ -1502,13 +1556,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
                 //We do however exceed the limit for the authors, so this property has to be true for the author
                 // facet
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(true),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -1564,7 +1612,15 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(true),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects"))
 
                 //** THEN **
@@ -1592,13 +1648,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
                 //We do however exceed the limit for the subject, so this property has to be true for the subject
                 // facet
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(true),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -1645,8 +1695,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a query that says that the title has to contain 'test'
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("f.title", "test,contains"))
 
@@ -1666,19 +1724,13 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                         SearchResultMatcher.match("core", "item", "items"),
                         SearchResultMatcher.match("core", "item", "items")
                 )))
-                //We need to display the appliedFilters object that contains the query that we've ran
+                //We need to display the appliedFilters object that contains the query that we've run
                 .andExpect(jsonPath("$.appliedFilters", contains(
                         AppliedFilterMatcher.appliedFilterEntry("title", "contains", "test", "test")
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -1751,8 +1803,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a scope 'test'
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("scope", "test"))
 
@@ -1780,13 +1840,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -1835,9 +1889,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         // ** WHEN **
-        // An anonymous user browses this endpoint to find the the objects in the system
+        // An anonymous user browses this endpoint to find the objects in the system
 
         // With dsoType 'item'
+        List<Matcher<? super Object>> allExpectedSidebarFacetsWithDsoTypeItem = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacetsWithDsoTypeItem.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("dsoType", "Item"))
 
@@ -1860,17 +1922,20 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets",
+                                    Matchers.containsInAnyOrder(allExpectedSidebarFacetsWithDsoTypeItem)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));
 
         // With dsoTypes 'community' and 'collection'
+        List<Matcher<? super Object>> allExpectedSidebarFacetsWithDsoTypesComCol = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacetsWithDsoTypesComCol.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("dsoType", "Community")
                 .param("dsoType", "Collection"))
@@ -1895,17 +1960,21 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets",
+                                    Matchers.containsInAnyOrder(allExpectedSidebarFacetsWithDsoTypesComCol)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));
 
         // With dsoTypes 'collection' and 'item'
+        List<Matcher<? super Object>> allExpectedSidebarFacetsWithDsoTypesColItem =
+            new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacetsWithDsoTypesColItem.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("dsoType", "Collection")
                 .param("dsoType", "Item"))
@@ -1931,17 +2000,21 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets",
+                                    Matchers.containsInAnyOrder(allExpectedSidebarFacetsWithDsoTypesColItem)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));
 
         // With dsoTypes 'community', 'collection' and 'item'
+        List<Matcher<? super Object>> allExpectedSidebarFacetsWithDsoTypesComColItem =
+            new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacetsWithDsoTypesComColItem.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("dsoType", "Community")
                 .param("dsoType", "Collection")
@@ -1971,13 +2044,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets",
+                                    Matchers.containsInAnyOrder(allExpectedSidebarFacetsWithDsoTypesComColItem)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));
     }
@@ -2024,9 +2092,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a dsoType 'item'
         //And a sort on the dc.title ascending
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("dsoType", "Item")
                 .param("sort", "dc.title,ASC"))
@@ -2058,13 +2134,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //We want to get the sort that's been used as well in the response
                 .andExpect(jsonPath("$.sort", is(
                         SortOptionMatcher.sortByAndOrder("dc.title", "ASC")
@@ -2246,8 +2316,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a size 2
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(true),
+            FacetEntryMatcher.subjectFacet(true),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("size", "2")
                 .param("page", "1"))
@@ -2270,13 +2348,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                         SearchResultMatcher.match(),
                         SearchResultMatcher.match()
                 )))
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(true),
-                        FacetEntryMatcher.subjectFacet(true),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -2339,8 +2411,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a query stating 'ThisIsSomeDummyText'
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("query", "ThisIsSomeDummyText"))
 
@@ -2360,13 +2440,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -2413,14 +2487,21 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withAuthor("test2, test2").withAuthor("Maybe, Maybe")
                 .withSubject("AnotherTest").withSubject("TestingForMore")
                 .withSubject("ExtraEntry")
-                .withEmbargoPeriod("12 months")
+                .withEmbargoPeriod(Period.ofMonths(12))
                 .build();
 
         //Turn on the authorization again
         context.restoreAuthSystemState();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
-        //
+        //An anonymous user browses this endpoint to find the objects in the system
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects"))
                 //** THEN **
                 //The status has to be 200 OK
@@ -2450,13 +2531,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                         )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -2514,7 +2589,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
         context.setCurrentUser(null);
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a size 2
         getClient().perform(get("/api/discover/search/objects")
                 .param("query", "ThisIsSomeDummyText"))
@@ -2591,8 +2666,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the scope given
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("scope", String.valueOf(scope)))
                 //** THEN **
@@ -2613,13 +2696,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -2670,8 +2747,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a size 2
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("scope", String.valueOf(scope)))
                 //** THEN **
@@ -2698,13 +2783,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 ))))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -2714,7 +2793,9 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
     /**
      * This test verifies that
      * {@link org.dspace.discovery.indexobject.InprogressSubmissionIndexFactoryImpl#storeInprogressItemFields}
-     * indexes the owning collection of workspace items
+     * indexes the owning collection of workspace items.
+     *
+     * @throws java.lang.Exception passed through.
      */
     @Test
     public void discoverSearchObjectsTestForWorkspaceItemInCollectionScope() throws Exception {
@@ -2765,7 +2846,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
     /**
      * This test verifies that
      * {@link org.dspace.discovery.indexobject.InprogressSubmissionIndexFactoryImpl#storeInprogressItemFields}
-     * indexes the owning collection of workflow items
+     * indexes the owning collection of workflow items.
+     * @throws java.lang.Exception passed through.
      */
     @Test
     public void discoverSearchObjectsTestForWorkflowItemInCollectionScope() throws Exception {
@@ -2856,8 +2938,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         String query = "Public";
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a query stating 'public'
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("query", query))
                 //** THEN **
@@ -2878,13 +2968,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore
                 // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -2934,7 +3018,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         String query = "Public";
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a query stating 'Public'
         getClient().perform(get("/api/discover/search/objects")
                 .param("query", query))
@@ -3000,10 +3084,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("f.title", "test*,query"))
                 //** THEN **
@@ -3022,13 +3113,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore property
                 // because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3076,10 +3161,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
             .param("f.title", "test,contains"))
                    //** THEN **
@@ -3098,14 +3190,9 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                                                                                                 )))
                    //These facets have to show up in the embedded.facets section as well with the given hasMore property
                    // because we don't exceed their default limit for a hasMore true (the default is 10)
-                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                       FacetEntryMatcher.authorFacet(false),
-                       FacetEntryMatcher.entityTypeFacet(false),
-                       FacetEntryMatcher.subjectFacet(false),
-                       FacetEntryMatcher.dateIssuedFacet(false),
-                       FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                                                                                        )))
-                   //There always needs to be a self link available
+                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
+
+                               //There always needs to be a self link available
                    .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
 
@@ -3151,10 +3238,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("f.title", "-test*,query"))
                 //** THEN **
@@ -3172,13 +3266,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore property
                 // because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3226,10 +3314,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
             .param("f.title", "test,notcontains"))
                    //** THEN **
@@ -3247,13 +3342,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                                                                                      )))
                    //These facets have to show up in the embedded.facets section as well with the given hasMore property
                    // because we don't exceed their default limit for a hasMore true (the default is 10)
-                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                       FacetEntryMatcher.authorFacet(false),
-                       FacetEntryMatcher.entityTypeFacet(false),
-                       FacetEntryMatcher.subjectFacet(false),
-                       FacetEntryMatcher.dateIssuedFacet(false),
-                       FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                                                                                        )))
+                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
+
                    //There always needs to be a self link available
                    .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3308,8 +3398,16 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a size 2
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacetWithMinMax(true, "Doe, Jane", "Testing, Works"),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(true),
+            FacetEntryMatcher.dateIssuedFacetWithMinMax(false, "1990-02-13", "2010-10-17"),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("size", "2")
                 .param("page", "1"))
@@ -3332,13 +3430,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                         SearchResultMatcher.match(),
                         SearchResultMatcher.match()
                 )))
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacetWithMinMax(true, "Doe, Jane", "Testing, Works"),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(true),
-                        FacetEntryMatcher.dateIssuedFacetWithMinMax(false, "1990-02-13", "2010-10-17"),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3393,21 +3485,23 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With a size 2
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacetWithMinMax(true, "Doe, Jane", "Testing, Works"),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(true),
+            FacetEntryMatcher.dateIssuedFacetWithMinMax(false, "1990-02-13", "2010-10-17"),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/facets"))
                 //** THEN **
                 //The status has to be 200 OK
                 .andExpect(status().isOk())
                 //The type has to be 'discover'
                 .andExpect(jsonPath("$.type", is("discover")))
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacetWithMinMax(true, "Doe, Jane", "Testing, Works"),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(true),
-                        FacetEntryMatcher.dateIssuedFacetWithMinMax(false, "1990-02-13", "2010-10-17"),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/facets")))
         ;
@@ -3454,10 +3548,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("f.title", "Test,query"))
                 //** THEN **
@@ -3475,13 +3576,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore property
                 // because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3529,10 +3624,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
             .param("f.title", "Test,equals"))
                    //** THEN **
@@ -3550,13 +3652,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                                                                                                 )))
                    //These facets have to show up in the embedded.facets section as well with the given hasMore property
                    // because we don't exceed their default limit for a hasMore true (the default is 10)
-                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                       FacetEntryMatcher.authorFacet(false),
-                       FacetEntryMatcher.entityTypeFacet(false),
-                       FacetEntryMatcher.subjectFacet(false),
-                       FacetEntryMatcher.dateIssuedFacet(false),
-                       FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                                                                                        )))
+                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                    //There always needs to be a self link available
                    .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3603,10 +3699,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("f.title", "-Test,query"))
                 //** THEN **
@@ -3625,13 +3728,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore property
                 // because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3679,10 +3776,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
             .param("f.title", "Test,notequals"))
                    //** THEN **
@@ -3701,13 +3805,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                                                                                       )))
                    //These facets have to show up in the embedded.facets section as well with the given hasMore property
                    // because we don't exceed their default limit for a hasMore true (the default is 10)
-                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                       FacetEntryMatcher.authorFacet(false),
-                       FacetEntryMatcher.entityTypeFacet(false),
-                       FacetEntryMatcher.subjectFacet(false),
-                       FacetEntryMatcher.dateIssuedFacet(false),
-                       FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                                                                                        )))
+                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                    //There always needs to be a self link available
                    .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3754,10 +3852,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
                 .param("f.title", "-id:test,query"))
                 //** THEN **
@@ -3775,13 +3880,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 )))
                 //These facets have to show up in the embedded.facets section as well with the given hasMore property
                 // because we don't exceed their default limit for a hasMore true (the default is 10)
-                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                        FacetEntryMatcher.authorFacet(false),
-                        FacetEntryMatcher.entityTypeFacet(false),
-                        FacetEntryMatcher.subjectFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
-                        FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                )))
+                .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                 //There always needs to be a self link available
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3829,10 +3928,17 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         context.restoreAuthSystemState();
 
-        UUID scope = col2.getID();
         //** WHEN **
-        //An anonymous user browses this endpoint to find the the objects in the system
+        //An anonymous user browses this endpoint to find the objects in the system
         //With the given search filter
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
+        ));
         getClient().perform(get("/api/discover/search/objects")
             .param("f.title", "test,notauthority"))
                    //** THEN **
@@ -3850,13 +3956,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                                                                                      )))
                    //These facets have to show up in the embedded.facets section as well with the given hasMore property
                    // because we don't exceed their default limit for a hasMore true (the default is 10)
-                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                       FacetEntryMatcher.authorFacet(false),
-                       FacetEntryMatcher.entityTypeFacet(false),
-                       FacetEntryMatcher.subjectFacet(false),
-                       FacetEntryMatcher.dateIssuedFacet(false),
-                       FacetEntryMatcher.hasContentInOriginalBundleFacet(false)
-                                                                                        )))
+                   .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                    //There always needs to be a self link available
                    .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
         ;
@@ -3866,7 +3966,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
     @Test
     public void discoverSearchObjectsWithMissingQueryOperator() throws Exception {
         //** WHEN **
-        // An anonymous user browses this endpoint to find the the objects in the system
+        // An anonymous user browses this endpoint to find the objects in the system
         // With the given search filter where there is the filter operator missing in the value (must be of form
         // <:filter-value>,<:filter-operator>)
         getClient().perform(get("/api/discover/search/objects")
@@ -3879,10 +3979,10 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
     @Test
     public void discoverSearchObjectsWithNotValidQueryOperator() throws Exception {
         //** WHEN **
-        // An anonymous user browses this endpoint to find the the objects in the system
+        // An anonymous user browses this endpoint to find the objects in the system
         // With the given search filter where there is a non-valid filter operator given (must be of form
         // <:filter-value>,<:filter-operator> where the filter operator is one of: “contains”, “notcontains”, "equals"
-        // “notequals”, “authority”, “notauthority”, "query”); see enum RestSearchOperator
+        // “notequals”, “authority”, “notauthority”, "query"); see enum RestSearchOperator
         getClient().perform(get("/api/discover/search/objects")
             .param("f.title", "test,operator"))
                    //** THEN **
@@ -4180,8 +4280,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
     @Test
     /**
-     * This test is intent to verify that inprogress submission (workspaceitem, workflowitem, pool task and claimed
-     * tasks) don't interfers with the standard search
+     * This test is intended to verify that an in progress submission (workspaceitem, workflowitem, pool task and
+     * claimed tasks) don't interfere with the standard search
      *
      * @throws Exception
      */
@@ -4231,7 +4331,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withSubject("ExtraEntry")
                 .build();
 
-        //3. three inprogress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
+        //3. three in progress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
         context.setCurrentUser(eperson);
         WorkspaceItem wsItem1 = WorkspaceItemBuilder.createWorkspaceItem(context, col1).withTitle("Workspace Item 1")
                 .build();
@@ -4246,7 +4346,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         ClaimedTask cTask = ClaimedTaskBuilder.createClaimedTask(context, col2, admin).withTitle("Claimed Item")
                 .build();
 
-        // 5. other inprogress submissions made by the administrator
+        // 5. other in progress submissions made by the administrator
         context.setCurrentUser(admin);
         WorkspaceItem wsItem1Admin = WorkspaceItemBuilder.createWorkspaceItem(context, col1)
                 .withTitle("Admin Workspace Item 1").build();
@@ -4261,7 +4361,15 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         //** WHEN **
         // An anonymous user, the submitter and the admin that browse this endpoint to find the public objects in the
-        // system should not retrieve the inprogress submissions and related objects
+        // system should not retrieve the in progress submissions and related objects
+        List<Matcher<? super Object>> allExpectedSidebarFacets = new ArrayList<>(customSidebarFacets);
+        allExpectedSidebarFacets.addAll(List.of(
+            FacetEntryMatcher.authorFacet(false),
+            FacetEntryMatcher.subjectFacet(false),
+            FacetEntryMatcher.dateIssuedFacet(false),
+            FacetEntryMatcher.hasContentInOriginalBundleFacet(false),
+            FacetEntryMatcher.entityTypeFacet(false)
+        ));
         String[] tokens = new String[] {
             null,
             getAuthToken(eperson.getEmail(), password),
@@ -4297,13 +4405,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                     )))
                     //These facets have to show up in the embedded.facets section as well with the given hasMore
                     // property because we don't exceed their default limit for a hasMore true (the default is 10)
-                    .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
-                            FacetEntryMatcher.authorFacet(false),
-                            FacetEntryMatcher.subjectFacet(false),
-                            FacetEntryMatcher.dateIssuedFacet(false),
-                            FacetEntryMatcher.hasContentInOriginalBundleFacet(false),
-                            FacetEntryMatcher.entityTypeFacet(false)
-                    )))
+                    .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(allExpectedSidebarFacets)))
                     //There always needs to be a self link
                     .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
             ;
@@ -4366,7 +4468,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withSubject("ExtraEntry")
                 .build();
 
-        //3. three inprogress submission from our submitter user (2 ws, 1 wf that will produce also a pooltask)
+        //3. three in progress submission from our submitter user (2 ws, 1 wf that will produce also a pooltask)
         WorkspaceItem wsItem1 = WorkspaceItemBuilder.createWorkspaceItem(context, col1).withTitle("Workspace Item 1")
                 .withIssueDate("2010-07-23")
                 .build();
@@ -4384,7 +4486,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withIssueDate("2010-11-03")
                 .build();
 
-        // 5. other inprogress submissions made by the administrator
+        // 5. other in progress submissions made by the administrator
         context.setCurrentUser(admin);
         WorkspaceItem wsItem1Admin = WorkspaceItemBuilder.createWorkspaceItem(context, col1)
                 .withIssueDate("2010-07-23")
@@ -4456,7 +4558,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false)
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date")
                 )))
                 //There always needs to be a self link
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
@@ -4502,7 +4605,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false)
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date")
                 )))
                 //There always needs to be a self link
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
@@ -4568,7 +4672,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withSubject("ExtraEntry")
                 .build();
 
-        //3. three inprogress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
+        //3. three in progress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
         context.setCurrentUser(eperson);
         WorkspaceItem wsItem1 = WorkspaceItemBuilder.createWorkspaceItem(context, col1).withTitle("Workspace Item 1")
                 .withIssueDate("2010-07-23")
@@ -4587,7 +4691,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withIssueDate("2010-11-03")
                 .build();
 
-        // 5. other inprogress submissions made by the administrator
+        // 5. other in progress submissions made by the administrator
         context.setCurrentUser(admin);
         WorkspaceItem wsItem1Admin = WorkspaceItemBuilder.createWorkspaceItem(context, col1)
                 .withIssueDate("2010-07-23")
@@ -4601,7 +4705,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withIssueDate("2010-11-03")
                 .withTitle("Admin Workflow Item 1").build();
 
-        // 6. a pool taks in the second step of the workflow
+        // 6. a pool task in the second step of the workflow
         ClaimedTask cTask2 = ClaimedTaskBuilder.createClaimedTask(context, col2, admin).withTitle("Pool Step2 Item")
                 .withIssueDate("2010-11-04")
                 .build();
@@ -4628,7 +4732,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         //   1 pool task in step 1, submitted by the same regular submitter
         //   1 pool task in step 1, submitted by the admin
         //   1 claimed task in the first workflow step from the repository admin
-        //   1 pool task task in step 2, from the repository admin
+        //   1 pool task in step 2, from the repository admin
         //    (This one is created by creating a claimed task for step 1 and approving it)
 
         //** WHEN **
@@ -4686,7 +4790,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -4736,7 +4841,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -4769,7 +4875,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -4838,7 +4945,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withSubject("ExtraEntry")
                 .build();
 
-        //3. three inprogress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
+        //3. three in progress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
         context.setCurrentUser(eperson);
         WorkspaceItem wsItem1 = WorkspaceItemBuilder.createWorkspaceItem(context, col1).withTitle("Workspace Item 1")
                 .withIssueDate("2010-07-23")
@@ -4857,7 +4964,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withIssueDate("2010-11-03")
                 .build();
 
-        // 5. other inprogress submissions made by the administrator
+        // 5. other in progress submissions made by the administrator
         context.setCurrentUser(admin);
         WorkspaceItem wsItem1Admin = WorkspaceItemBuilder.createWorkspaceItem(context, col1)
                 .withIssueDate("2010-07-23")
@@ -4871,7 +4978,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .withIssueDate("2010-11-03")
                 .withTitle("Admin Workflow Item 1").build();
 
-        // 6. a pool taks in the second step of the workflow
+        // 6. a pool task in the second step of the workflow
         ClaimedTask cTask2 = ClaimedTaskBuilder.createClaimedTask(context, col2, admin).withTitle("Pool Step2 Item")
                 .withIssueDate("2010-11-04")
                 .build();
@@ -4898,7 +5005,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         //   1 pool task in step 1, submitted by the same regular submitter
         //   1 pool task in step 1, submitted by the admin
         //   1 claimed task in the first workflow step from the repository admin
-        //   1 pool task task in step 2, from the repository admin
+        //   1 pool task in step 2, from the repository admin
         //    (This one is created by creating a claimed task for step 1 and approving it)
 
         //** WHEN **
@@ -4983,7 +5090,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -5731,7 +5839,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         getClient(adminToken).perform(get("/api/discover/search/objects")
                              .param("configuration", "workflow")
-                             .param("sort", "dc.date.issued,DESC")
+                             // DATASHARE - sortDateIssued commented in workflowConfiguration, use accessioned
+                             .param("sort", "dc.date.accessioned,DESC")
                              .param("query", "Mathematical Theory"))
                          .andExpect(status().isOk())
                          .andExpect(jsonPath("$.query", is("Mathematical Theory")))
@@ -5739,15 +5848,12 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                          .andExpect(jsonPath("$._embedded.searchResult._embedded.objects", Matchers.contains(
                                              SearchResultMatcher.match("workflow", "pooltask", "pooltasks")
                           )))
-                         .andExpect(jsonPath("$._embedded.searchResult._embedded.objects",Matchers.contains(
-                              allOf(hasJsonPath("$._embedded.indexableObject._embedded.workflowitem._embedded.item",
-                                 is(SearchResultMatcher.matchEmbeddedObjectOnItemName("item", "Mathematical Theory"))))
-                          )))
                          .andExpect(jsonPath("$._embedded.searchResult.page.totalElements", is(1)));
 
         getClient(adminToken).perform(get("/api/discover/search/objects")
                              .param("configuration", "workflow")
-                             .param("sort", "dc.date.issued,DESC")
+                             // DATASHARE - sortDateIssued commented in workflowConfiguration, use accessioned
+                             .param("sort", "dc.date.accessioned,DESC")
                              .param("query", "Metaphysics"))
                          .andExpect(status().isOk())
                          .andExpect(jsonPath("$.query", is("Metaphysics")))
@@ -5756,12 +5862,6 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                              SearchResultMatcher.match("workflow", "pooltask", "pooltasks"),
                                              SearchResultMatcher.match("workflow", "pooltask", "pooltasks")
                                              )))
-                         .andExpect(jsonPath("$._embedded.searchResult._embedded.objects",Matchers.containsInAnyOrder(
-                              allOf(hasJsonPath("$._embedded.indexableObject._embedded.workflowitem._embedded.item",
-                                 is(SearchResultMatcher.matchEmbeddedObjectOnItemName("item", "Metaphysics")))),
-                              allOf(hasJsonPath("$._embedded.indexableObject._embedded.workflowitem._embedded.item",
-                                 is(SearchResultMatcher.matchEmbeddedObjectOnItemName("item", "Test Metaphysics"))))
-                          )))
                          .andExpect(jsonPath("$._embedded.searchResult.page.totalElements", is(2)));
     }
 
@@ -5817,7 +5917,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         getClient(adminToken).perform(get("/api/discover/search/objects")
                              .param("configuration", "workflow")
-                             .param("sort", "dc.date.issued,DESC")
+                             // DATASHARE - sortDateIssued commented in workflowConfiguration, use accessioned
+                             .param("sort", "dc.date.accessioned,DESC")
                              .param("query", ""))
                          .andExpect(status().isOk())
                          .andExpect(jsonPath("$.configuration", is("workflow")))
@@ -5826,14 +5927,6 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                              SearchResultMatcher.match("workflow", "pooltask", "pooltasks"),
                                              SearchResultMatcher.match("workflow", "pooltask", "pooltasks")
                                              )))
-                         .andExpect(jsonPath("$._embedded.searchResult._embedded.objects",Matchers.containsInAnyOrder(
-                              allOf(hasJsonPath("$._embedded.indexableObject._embedded.workflowitem._embedded.item",
-                                 is(SearchResultMatcher.matchEmbeddedObjectOnItemName("item", "Mathematical Theory")))),
-                              allOf(hasJsonPath("$._embedded.indexableObject._embedded.workflowitem._embedded.item",
-                                 is(SearchResultMatcher.matchEmbeddedObjectOnItemName("item", "Metaphysics")))),
-                              allOf(hasJsonPath("$._embedded.indexableObject._embedded.workflowitem._embedded.item",
-                                 is(SearchResultMatcher.matchEmbeddedObjectOnItemName("item", "Test Metaphysics"))))
-                          )))
                          .andExpect(jsonPath("$._embedded.searchResult.page.totalElements", is(3)));
     }
 
@@ -6586,7 +6679,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                       .withSubject("ExtraEntry")
                                       .build();
 
-        //3. three inprogress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
+        //3. three in progress submission from a normal user (2 ws, 1 wf that will produce also a pooltask)
         context.setCurrentUser(eperson);
         WorkspaceItem wsItem1 = WorkspaceItemBuilder.createWorkspaceItem(context, col1)
                                                     .withTitle("Workspace Item 1")
@@ -6616,7 +6709,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                                               .withIssueDate("2010-11-03")
                                               .build();
 
-        // 5. other inprogress submissions made by the administrator
+        // 5. other in progress submissions made by the administrator
         context.setCurrentUser(admin);
         WorkspaceItem wsItem1Admin = WorkspaceItemBuilder.createWorkspaceItem(context, col1)
                                                          .withIssueDate("2010-07-23")
@@ -6775,12 +6868,13 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
             .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                 FacetEntryMatcher.resourceTypeFacet(false),
                 FacetEntryMatcher.typeFacet(false),
-                FacetEntryMatcher.dateIssuedFacet(false),
+                FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                 FacetEntryMatcher.submitterFacet(false),
                 FacetEntryMatcher.supervisedByFacet(false)
             )))
             //check supervisedBy Facet values
-            .andExpect(jsonPath("$._embedded.facets[4]._embedded.values",
+            .andExpect(jsonPath("$._embedded.facets[5]._embedded.values",
                 contains(
                     entrySupervisedBy(groupA.getName(), groupA.getID().toString(), 6),
                     entrySupervisedBy(groupB.getName(), groupB.getID().toString(), 2)
@@ -6800,6 +6894,133 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
             // size and the current page (number)
             .andExpect(jsonPath("$._embedded.searchResult.page", is(
                 PageMatcher.pageEntryWithTotalPagesAndElements(0, 20, 0, 0)
+            )))
+            //There always needs to be a self link
+            .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));
+    }
+
+    @Test
+    public void discoverSearchObjectsNOTIFYIncomingConfigurationTest() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+
+        context.turnOffAuthorisationSystem();
+
+        Community community = CommunityBuilder.createCommunity(context)
+                                              .withName("community")
+                                              .build();
+        Collection collection = CollectionBuilder.createCollection(context, community)
+                                                 .withName("collection")
+                                                 .build();
+
+        Item item = ItemBuilder.createItem(context, collection)
+                               .withTitle("item title")
+                               .build();
+
+        String object = configurationService.getProperty("dspace.ui.url") + "/handle/" + item.getHandle();
+
+        NotifyServiceEntity notifyService =
+            NotifyServiceBuilder.createNotifyServiceBuilder(context, "service name")
+                                .withDescription("service description")
+                                .withUrl("service url")
+                                .withLdnUrl("https://overlay-journal.com/inbox/")
+                                .build();
+
+        InputStream announceEndorsementStream = getClass().getResourceAsStream("ldn_announce_endorsement.json");
+        String announceEndorsement = IOUtils.toString(announceEndorsementStream, Charset.defaultCharset());
+        announceEndorsementStream.close();
+
+        String message = announceEndorsement.replaceAll("<<object>>", object);
+        message = message.replaceAll("<<object_handle>>", object);
+        Notification notification = mapper.readValue(message, Notification.class);
+        LDNMessageBuilder.createNotifyServiceBuilder(context, notification).build();
+
+        context.restoreAuthSystemState();
+
+        String adminToken = getAuthToken(admin.getEmail(), password);
+        getClient(adminToken)
+            .perform(get("/api/discover/search/objects").param("configuration", "NOTIFY.incoming"))
+            //** THEN **
+            //The status has to be 200 OK
+            .andExpect(status().isOk())
+            //The type has to be 'discover'
+            .andExpect(jsonPath("$.type", is("discover")))
+            //There needs to be a page object that shows the total pages and total elements as well as the
+            // size and the current page (number)
+            .andExpect(jsonPath("$._embedded.searchResult.page", is(
+                PageMatcher.pageEntryWithTotalPagesAndElements(0, 20, 1, 1)
+            )))
+            .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
+                FacetEntryMatcher.relatedItemFacet(false),
+                FacetEntryMatcher.originFacet(false),
+                FacetEntryMatcher.targetFacet(false),
+                FacetEntryMatcher.queueStatusFacet(false),
+                FacetEntryMatcher.activityStreamTypeFacet(false),
+                FacetEntryMatcher.coarNotifyTypeFacet(false),
+                FacetEntryMatcher.notificationTypeFacet(false)
+            )))
+            //There always needs to be a self link
+            .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));
+    }
+
+    @Test
+    public void discoverSearchObjectsNOTIFYOutgoingConfigurationTest() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+
+        context.turnOffAuthorisationSystem();
+
+        Community community = CommunityBuilder.createCommunity(context)
+                                              .withName("community")
+                                              .build();
+        Collection collection = CollectionBuilder.createCollection(context, community)
+                                                 .withName("collection")
+                                                 .build();
+
+        Item item = ItemBuilder.createItem(context, collection)
+                               .withTitle("item title")
+                               .build();
+
+        String object = configurationService.getProperty("dspace.ui.url") + "/handle/" + item.getHandle();
+
+        NotifyServiceEntity notifyService =
+            NotifyServiceBuilder.createNotifyServiceBuilder(context, "service name")
+                                .withDescription("service description")
+                                .withUrl("service url")
+                                .withLdnUrl("https://generic-service.com/system/inbox/")
+                                .build();
+
+        InputStream announceReviewStream = getClass().getResourceAsStream("ldn_announce_review.json");
+        String announceReview = IOUtils.toString(announceReviewStream, Charset.defaultCharset());
+        announceReviewStream.close();
+
+
+        String message = announceReview.replaceAll("<<object>>", object);
+        message = message.replaceAll("<<object_handle>>", object);
+        Notification notification = mapper.readValue(message, Notification.class);
+        LDNMessageBuilder.createNotifyServiceBuilder(context, notification).build();
+
+        context.restoreAuthSystemState();
+
+        String adminToken = getAuthToken(admin.getEmail(), password);
+        getClient(adminToken)
+            .perform(get("/api/discover/search/objects").param("configuration", "NOTIFY.outgoing"))
+            //** THEN **
+            //The status has to be 200 OK
+            .andExpect(status().isOk())
+            //The type has to be 'discover'
+            .andExpect(jsonPath("$.type", is("discover")))
+            //There needs to be a page object that shows the total pages and total elements as well as the
+            // size and the current page (number)
+            .andExpect(jsonPath("$._embedded.searchResult.page", is(
+                PageMatcher.pageEntryWithTotalPagesAndElements(0, 20, 1, 1)
+            )))
+            .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
+                FacetEntryMatcher.relatedItemFacet(false),
+                FacetEntryMatcher.originFacet(false),
+                FacetEntryMatcher.targetFacet(false),
+                FacetEntryMatcher.queueStatusFacet(false),
+                FacetEntryMatcher.activityStreamTypeFacet(false),
+                FacetEntryMatcher.coarNotifyTypeFacet(false),
+                FacetEntryMatcher.notificationTypeFacet(false)
             )))
             //There always needs to be a self link
             .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));

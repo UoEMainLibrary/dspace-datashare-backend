@@ -1,0 +1,396 @@
+/**
+ * The contents of this file are subject to the license and copyright
+ * detailed in the LICENSE and NOTICE files at the root of the source
+ * tree and available online at
+ *
+ * http://www.dspace.org/license/
+ */
+package org.dspace.content.datashare.service.impl;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import org.apache.logging.log4j.Logger;
+import org.dspace.authorize.AuthorizeException;
+import org.dspace.content.DSpaceObject;
+import org.dspace.content.Item;
+import org.dspace.content.MetadataField;
+import org.dspace.content.MetadataFieldName;
+import org.dspace.content.MetadataValue;
+import org.dspace.content.datashare.DatashareDataset;
+import org.dspace.content.datashare.DatashareItemDataset;
+import org.dspace.content.datashare.dao.DatashareDatasetDAO;
+import org.dspace.content.datashare.service.DatashareDatasetService;
+import org.dspace.core.Constants;
+import org.dspace.core.Context;
+import org.dspace.core.LogHelper;
+import org.dspace.event.Event;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class DatashareDatasetServiceImpl implements DatashareDatasetService {
+
+    private static final Logger log = org.apache.logging.log4j.LogManager.getLogger(DatashareDatasetServiceImpl.class);
+
+    @Autowired(required = true)
+    private DatashareDatasetDAO datashareDatasetDAO;
+
+    @Override
+    public DatashareDataset insertDatashareDataset(Context context, Item item, String fileName, String cksum) {
+        DatashareDataset dataset = null;
+        // Delete any current dataset for this item
+        deleteDatashareDataset(context, fileName);
+
+        try {
+            dataset = createDatashareDataset(context, item, fileName, cksum);
+        } catch (SQLException | AuthorizeException e) {
+            log.error("Error creating dataset for fileName: " + fileName, e);
+        }
+        return dataset;
+    }
+
+    @Override
+    public void deleteDatashareDataset(Context context, String filename) {
+        try {
+
+            context.turnOffAuthorisationSystem();
+            datashareDatasetDAO.deleteByFileName(context, filename);
+        } catch (SQLException e) {
+            log.error("Error deleting dataset with fileName: " + filename, e);
+        } finally {
+            context.restoreAuthSystemState();
+        }
+    }
+
+    @Override
+    public String fetchDatashareDatasetChecksum(Context context, Item item) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'fetchDatashareDatasetChecksum'");
+    }
+
+    @Override
+    public boolean isDatashareDatasetZipFileDownloadable(Context context, Item item) {
+        return findDatashareDatasetByItem(context, item) != null;
+    }
+
+    @Override
+    public String fetchDatashareDatasetZipFileLink(Context context, Item item) {
+        String downloadLink = "";
+        try {
+            if (isDatashareDatasetZipFileDownloadable(context, item)) {
+
+                DatashareDataset dataset = findDatashareDatasetByItem(context, item);
+
+                if (dataset != null) {
+                    String filePath = DatashareItemDataset.getFullFilePath(item.getHandle());
+                    log.info(filePath, filePath);
+                    if (filePath != null && !filePath.isEmpty()) {
+                        log.info("new File(filePath).exists(): "
+                            + new File(filePath).exists());
+                        if (new File(filePath).exists()) {
+                            downloadLink = DatashareItemDataset.getURL(item) != null
+                                ? DatashareItemDataset.getURL(item) : "";
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error fetching download link for item: " + item.getHandle(), e);
+        }
+        log.info("Download link: " + downloadLink);
+        return downloadLink;
+    }
+
+    // Private methods
+    private DatashareDataset createDatashareDataset(Context context, Item item, String fileName, String checksum)
+            throws SQLException, AuthorizeException {
+        DatashareDataset datasetObj = new DatashareDataset();
+        datasetObj.setItem(item);
+        datasetObj.setFileName(fileName);
+        datasetObj.setChecksum(checksum);
+        DatashareDataset dataset = datashareDatasetDAO.create(context, datasetObj);
+
+        // // Call update to give the item a last modified date. OK this isn't
+        // // amazingly efficient but creates don't happen that often.
+        // context.turnOffAuthorisationSystem();
+        // update(context, dataset);
+        // context.restoreAuthSystemState();
+
+        context.addEvent(new Event(Event.CREATE, Constants.DATASHARE_DATASET, dataset.getID(),
+                null, new ArrayList<String>()));
+
+        log.info("create Dataset: Dataset id= " + dataset.getID());
+
+        return dataset;
+
+    }
+
+    // Only return DatashareDataset for item if it exists in the file system
+    private DatashareDataset findDatashareDatasetByItem(Context context, Item item) {
+        try {
+            boolean allItemBitstreamsAvailable = DatashareItemDataset.areAllItemBitstreamsAvailable(context, item);
+            // If all item bitstreams are not available then we don't want to return a
+            // dataset.
+            if (!allItemBitstreamsAvailable) {
+                log.info("find_Dataset: not_available, Item  = " + item);
+                return null;
+            }
+
+            DatashareDataset dataset = datashareDatasetDAO.findLatestDatashareDatasetByItem(context, item);
+            if (dataset == null) {
+                log.info("find_Dataset: not_found, Item uuid = " + null);
+                return null;
+            }
+            log.info("find_Dataset: Item uuid = " + item.getID());
+            log.info("find_Dataset: Dataset File = " + dataset.getFileName());
+
+            return dataset;
+        } catch (Exception e) {
+            log.error("find_Dataset: Item uuid = " + item.getID(), e);
+            return null;
+        }
+    }
+
+    // Unmplemented methods of the interfaces:
+    // DSpaceObjectService<DatashareDataset> and DSpaceObjectLegacySupportService<DatashareDataset>
+    @Override
+    public DatashareDataset find(Context context, UUID uuid) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public String getName(DatashareDataset dso) {
+        return dso != null ? dso.getName() : null;
+    }
+
+    @Override
+    public ArrayList<String> getIdentifiers(Context context, DatashareDataset dso) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getIdentifiers'");
+    }
+
+    @Override
+    public DSpaceObject getParentObject(Context context, DatashareDataset dso) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getParentObject'");
+    }
+
+    @Override
+    public DSpaceObject getAdminObject(Context context, DatashareDataset dso, int action) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getAdminObject'");
+    }
+
+    @Override
+    public String getTypeText(DatashareDataset dso) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getTypeText'");
+    }
+
+    @Override
+    public List<MetadataValue> getMetadata(DatashareDataset dSpaceObject, String schema, String element,
+            String qualifier, String lang) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMetadata'");
+    }
+
+    @Override
+    public List<MetadataValue> getMetadataByMetadataString(DatashareDataset dSpaceObject, String mdString) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMetadataByMetadataString'");
+    }
+
+    @Override
+    public String getMetadata(DatashareDataset dSpaceObject, String value) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMetadata'");
+    }
+
+    @Override
+    public List<MetadataValue> getMetadata(DatashareDataset dSpaceObject, String mdString, String authority) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMetadata'");
+    }
+
+    @Override
+    public List<MetadataValue> getMetadata(DatashareDataset dSpaceObject, String schema, String element,
+            String qualifier, String lang, String authority) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMetadata'");
+    }
+
+    @Override
+    public List<MetadataValue> addMetadata(Context context, DatashareDataset dso, String schema, String element,
+            String qualifier, String lang, List<String> values) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public List<MetadataValue> addMetadata(Context context, DatashareDataset dso, String schema, String element,
+            String qualifier, String lang, List<String> values, List<String> authorities, List<Integer> confidences)
+            throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public List<MetadataValue> addMetadata(Context context, DatashareDataset dso, MetadataField metadataField,
+            String lang, List<String> values, List<String> authorities, List<Integer> confidences) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public MetadataValue addMetadata(Context context, DatashareDataset dso, MetadataField metadataField,
+            String language, String value, String authority, int confidence) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public MetadataValue addMetadata(Context context, DatashareDataset dso, MetadataField metadataField,
+            String language, String value) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public List<MetadataValue> addMetadata(Context context, DatashareDataset dso, MetadataField metadataField,
+            String language, List<String> values) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public MetadataValue addMetadata(Context context, DatashareDataset dso, String schema, String element,
+            String qualifier, String lang, String value) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public MetadataValue addMetadata(Context context, DatashareDataset dso, String schema, String element,
+            String qualifier, String lang, String value, String authority, int confidence, int place)
+            throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public MetadataValue addMetadata(Context context, DatashareDataset dso, String schema, String element,
+            String qualifier, String lang, String value, String authority, int confidence) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addMetadata'");
+    }
+
+    @Override
+    public void clearMetadata(Context context, DatashareDataset dso, String schema, String element, String qualifier,
+            String lang) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'clearMetadata'");
+    }
+
+    @Override
+    public void removeMetadataValues(Context context, DatashareDataset dso, List<MetadataValue> values)
+            throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'removeMetadataValues'");
+    }
+
+    @Override
+    public String getMetadataFirstValue(DatashareDataset dso, String schema, String element, String qualifier,
+            String language) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMetadataFirstValue'");
+    }
+
+    @Override
+    public String getMetadataFirstValue(DatashareDataset dso, MetadataFieldName field, String language) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMetadataFirstValue'");
+    }
+
+    @Override
+    public void setMetadataSingleValue(Context context, DatashareDataset dso, String schema, String element,
+            String qualifier, String language, String value) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setMetadataSingleValue'");
+    }
+
+    @Override
+    public void setMetadataSingleValue(Context context, DatashareDataset dso, MetadataFieldName field, String language,
+            String value) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setMetadataSingleValue'");
+    }
+
+    @Override
+    public void updateLastModified(Context context, DatashareDataset dso) throws SQLException, AuthorizeException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'updateLastModified'");
+    }
+
+    @Override
+    public void update(Context context, DatashareDataset dso) throws SQLException, AuthorizeException {
+        datashareDatasetDAO.save(context, dso);
+        log.info(LogHelper.getHeader(context, "update_datashare_dataset",
+                "fileName=" + dso.getFileName()));
+    }
+
+    @Override
+    public void delete(Context context, DatashareDataset dso) throws SQLException, AuthorizeException, IOException {
+        log.info(LogHelper.getHeader(context, "delete_dso",
+                "fileName=" + dso.getFileName()));
+        datashareDatasetDAO.delete(context, dso);
+    }
+
+    @Override
+    public void addAndShiftRightMetadata(Context context, DatashareDataset dso, String schema, String element,
+            String qualifier, String lang, String value, String authority, int confidence, int index)
+            throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addAndShiftRightMetadata'");
+    }
+
+    @Override
+    public void replaceMetadata(Context context, DatashareDataset dso, String schema, String element, String qualifier,
+            String lang, String value, String authority, int confidence, int index) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'replaceMetadata'");
+    }
+
+    @Override
+    public void moveMetadata(Context context, DatashareDataset dso, String schema, String element, String qualifier,
+            int from, int to) throws SQLException {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'moveMetadata'");
+    }
+
+    @Override
+    public int getSupportsTypeConstant() {
+        return Constants.DATASHARE_DATASET;
+    }
+
+    @Override
+    public void setMetadataModified(DatashareDataset dso) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setMetadataModified'");
+    }
+
+    @Override
+    public DatashareDataset findByIdOrLegacyId(Context context, String id) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public DatashareDataset findByLegacyId(Context context, int id) throws SQLException {
+        return null;
+    }
+
+}

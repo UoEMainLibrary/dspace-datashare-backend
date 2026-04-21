@@ -93,10 +93,7 @@ public class DefaultEmbargoSetter implements EmbargoSetter {
             String bnn = bn.getName();
             if (!(bnn.equals(Constants.LICENSE_BUNDLE_NAME) || bnn.equals(Constants.METADATA_BUNDLE_NAME) || bnn
                 .equals(CreativeCommonsServiceImpl.CC_BUNDLE_NAME))) {
-                //AuthorizeManager.removePoliciesActionFilter(context, bn, Constants.READ);
-                generatePolicies(context, liftDate.toDate(), null, bn, item.getOwningCollection());
                 for (Bitstream bs : bn.getBitstreams()) {
-                    //AuthorizeManager.removePoliciesActionFilter(context, bs, Constants.READ);
                     generatePolicies(context, liftDate.toDate(), null, bs, item.getOwningCollection());
                 }
             }
@@ -169,10 +166,21 @@ public class DefaultEmbargoSetter implements EmbargoSetter {
                     for (ResourcePolicy rp : getAuthorizeService()
                         .getPoliciesActionFilter(context, bn, Constants.READ)) {
                         if (rp.getStartDate() == null) {
+                            // DATASHARE - start
+                            // In Datashare, we have found items where EPerson is null
+                            // on the ResourcePolicy of item bitstreams.
+                            // This has caused the display of the warning message to fail with a NullPointerException.
+                            // System.out.println("CHECK WARNING: Item " + item.getHandle() + ", Bundle " + bn
+                            //         .getName() + " allows READ by " +
+                            //         ((rp.getEPerson() != null) ? "Group " + rp.getGroup().getName() :
+                            //                 "EPerson " + rp.getEPerson().getFullName()));
                             System.out.println("CHECK WARNING: Item " + item.getHandle() + ", Bundle " + bn
-                                    .getName() + " allows READ by " +
-                                    ((rp.getEPerson() != null) ? "Group " + rp.getGroup().getName() :
-                                            "EPerson " + rp.getEPerson().getFullName()));
+                                    .getName() + " allows READ by "
+                                    + ((rp.getGroup() != null) ? "Group " + rp.getGroup().getName() : "Group not set")
+                                    + ((rp.getEPerson() != null) ? "EPerson " + rp.getEPerson().getFullName()
+                                    : "; EPerson not set"));
+
+                            // DATASHARE - end
                         }
                     }
                 }
@@ -181,10 +189,20 @@ public class DefaultEmbargoSetter implements EmbargoSetter {
                     for (ResourcePolicy rp : getAuthorizeService()
                         .getPoliciesActionFilter(context, bs, Constants.READ)) {
                         if (rp.getStartDate() == null) {
+                            // DATASHARE - start
+                            // In Datashare, we have found items where EPerson is null
+                            // on the ResourcePolicy of item bitstreams.
+                            // This has caused the display of the warning message to fail with a NullPointerException.
+                            // System.out.println("CHECK WARNING: Item " + item.getHandle() + ", Bitstream " + bs
+                            //         .getName() + " (in Bundle " + bn.getName() + ") allows READ by " +
+                            //         ((rp.getEPerson() != null) ? "Group " + rp.getGroup().getName() :
+                            //                 "EPerson " + rp.getEPerson().getFullName()));
                             System.out.println("CHECK WARNING: Item " + item.getHandle() + ", Bitstream " + bs
-                                    .getName() + " (in Bundle " + bn.getName() + ") allows READ by " +
-                                    ((rp.getEPerson() != null) ? "Group " + rp.getGroup().getName() :
-                                            "EPerson " + rp.getEPerson().getFullName()));
+                                    .getName() + " (in Bundle " + bn.getName() + ") allows READ by "
+                                    + ((rp.getGroup() != null) ? "Group " + rp.getGroup().getName() : "Group not set")
+                                    + ((rp.getEPerson() != null) ? "EPerson " + rp.getEPerson().getFullName()
+                                    : "; EPerson not set"));
+                            // DATASHARE - end
                         }
                     }
                 }

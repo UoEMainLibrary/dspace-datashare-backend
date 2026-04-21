@@ -1,5 +1,6 @@
 ## Ignore the MVN compiled output directories from version tracking
 target/
+scripts/
 
 ## Ignore tags index files created by Exuberant Ctags
 tags
@@ -10,6 +11,7 @@ tags
 .project
 .classpath
 .checkstyle
+.factorypath
 
 ## Ignore project files created by IntelliJ IDEA
 *.iml

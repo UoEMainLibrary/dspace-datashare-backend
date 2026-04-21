@@ -82,13 +82,17 @@
             <class>dsrun</class>
         </step>
     </command>
+    <!-- DATASHARE - start -->
+    <!-- 
     <command>
         <name>embargo-lifter</name>
         <description>Embargo manager tool used to check, list and lift embargoes</description>
         <step>
             <class>org.dspace.embargo.EmbargoCLITool</class>
         </step>
-    </command>
+    </command> 
+    -->
+    <!-- DATASHARE - end -->
     <command>
         <name>generate-sitemaps</name>
         <description>Generate search engine and html sitemaps</description>
@@ -178,8 +182,8 @@
         <description>Export usage statistics data from Solr for back-up purposes</description>
         <step passuserargs="true">
             <class>org.dspace.util.SolrImportExport</class>
-	    <argument>-a</argument>
-	    <argument>export</argument>
+            <argument>-a</argument>
+            <argument>export</argument>
         </step>
     </command>
     <command>
@@ -187,8 +191,8 @@
         <description>Import usage statistics data (as previously exported using solr-export-statistics) into Solr</description>
         <step passuserargs="true">
             <class>org.dspace.util.SolrImportExport</class>
-	    <argument>-a</argument>
-	    <argument>import</argument>
+            <argument>-a</argument>
+            <argument>import</argument>
         </step>
     </command>
     <command>
@@ -196,8 +200,8 @@
         <description>Reindex the Solr-based usage statistics, for example after an upgrade that changes the schema</description>
         <step passuserargs="true">
             <class>org.dspace.util.SolrImportExport</class>
-	    <argument>-a</argument>
-	    <argument>reindex</argument>
+            <argument>-a</argument>
+            <argument>reindex</argument>
         </step>
     </command>
     <command>
@@ -345,4 +349,21 @@
             <class>org.dspace.iiif.canvasdimension.CanvasDimensionCLI</class>
         </step>
     </command>
+
+    <!-- DATASHARE - start -->
+    <command>
+        <name>ds-datasets</name>
+        <description>Generate item zip files</description>
+        <step>
+            <class>org.dspace.content.datashare.DatashareItemDataset</class>
+        </step>
+    </command>
+    <command>
+        <name>ds-doi-citation</name>
+        <description>Update citations with dois in DataShare</description>
+        <step>
+            <class>uk.ac.ed.datashare.commands.DatashareDoiCitationUpdaterCLI</class>
+        </step>
+    </command>
+    <!-- DATASHARE - end -->
 </commands>

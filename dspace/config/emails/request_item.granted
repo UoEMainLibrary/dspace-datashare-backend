@@ -2,7 +2,7 @@
 ## request is granted.
 ##
 ## Parameters:
-##  {0} name of the requestor
+##  {0} name of the requester
 ##  {1} Handle URL of the requested Item
 ##  {2} title of the requested Item
 ##  {3} name of the grantor
@@ -23,4 +23,9 @@ ${params[5]}
 #end
 
 Best regards,
-The ${config.get('dspace.name')} Team
+
+Research Data Support team
+Library and University Collections
+University of Edinburgh
+
+data-support@ed.ac.uk

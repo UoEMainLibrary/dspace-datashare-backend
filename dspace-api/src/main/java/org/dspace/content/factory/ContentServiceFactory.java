@@ -13,6 +13,7 @@ import org.dspace.content.DSpaceObject;
 import org.dspace.content.InProgressSubmission;
 import org.dspace.content.RelationshipMetadataService;
 import org.dspace.content.WorkspaceItem;
+import org.dspace.content.datashare.service.DatashareDatasetService;
 import org.dspace.content.service.BitstreamFormatService;
 import org.dspace.content.service.BitstreamService;
 import org.dspace.content.service.BundleService;
@@ -20,6 +21,7 @@ import org.dspace.content.service.CollectionService;
 import org.dspace.content.service.CommunityService;
 import org.dspace.content.service.DSpaceObjectLegacySupportService;
 import org.dspace.content.service.DSpaceObjectService;
+import org.dspace.content.service.DuplicateDetectionService;
 import org.dspace.content.service.EntityService;
 import org.dspace.content.service.EntityTypeService;
 import org.dspace.content.service.InProgressSubmissionService;
@@ -75,6 +77,9 @@ public abstract class ContentServiceFactory {
 
     public abstract SubscribeService getSubscribeService();
 
+    // DATASHARE services
+    public abstract DatashareDatasetService getDatashareDatasetService();
+
     /**
      * Return the implementation of the RelationshipTypeService interface
      *
@@ -112,6 +117,13 @@ public abstract class ContentServiceFactory {
             return WorkflowServiceFactory.getInstance().getWorkflowItemService();
         }
     }
+
+    /**
+     * Return the implementation of the DuplicateDetectionService interface
+     *
+     * @return the DuplicateDetectionService
+     */
+    public abstract DuplicateDetectionService getDuplicateDetectionService();
 
     public <T extends DSpaceObject> DSpaceObjectService<T> getDSpaceObjectService(T dso) {
         return getDSpaceObjectService(dso.getType());

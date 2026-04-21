@@ -44,4 +44,9 @@ public abstract class Operation {
         return value;
     }
 
+    @Override
+    public String toString() {
+        return "Operation [op=" + op + ", path=" + path + ", value=" + value + "]";
+    }
+
 }

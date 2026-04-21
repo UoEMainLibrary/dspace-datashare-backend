@@ -21,6 +21,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Period;
+
 import org.dspace.app.rest.matcher.BrowseEntryResourceMatcher;
 import org.dspace.app.rest.matcher.BrowseIndexMatcher;
 import org.dspace.app.rest.matcher.ItemMatcher;
@@ -64,8 +66,8 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                    //We expect the content type to be "application/hal+json;charset=UTF-8"
                    .andExpect(content().contentType(contentType))
 
-                   //Our default Discovery config has 5 browse indexes, so we expect this to be reflected in the page
-                   // object
+                   //Our default Discovery config has 5 browse indexes (DATASHARE adds dateaccessioned and
+                   // subject_classification, removes dateissued and srsc), so we expect this in the page object
                    .andExpect(jsonPath("$.page.size", is(20)))
                    .andExpect(jsonPath("$.page.totalElements", is(5)))
                    .andExpect(jsonPath("$.page.totalPages", is(1)))
@@ -76,11 +78,12 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
 
                    //Check that all (and only) the default browse indexes are present
                    .andExpect(jsonPath("$._embedded.browses", containsInAnyOrder(
-                       BrowseIndexMatcher.dateIssuedBrowseIndex("asc"),
+                       // DATASHARE - dateaccessioned and subject_classification instead of dateissued and srsc
+                       BrowseIndexMatcher.dateAccessionedBrowseIndex("asc"),
                        BrowseIndexMatcher.contributorBrowseIndex("asc"),
                        BrowseIndexMatcher.titleBrowseIndex("asc"),
                        BrowseIndexMatcher.subjectBrowseIndex("asc"),
-                       BrowseIndexMatcher.hierarchicalBrowseIndex("srsc")
+                       BrowseIndexMatcher.subjectClassificationBrowseIndex("asc")
                    )))
         ;
     }
@@ -101,15 +104,10 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
 
     @Test
     public void findBrowseByDateIssued() throws Exception {
-        //When we call the root endpoint
+        // DATASHARE - dateissued browse index is not configured in DataShare,
+        // so the endpoint returns 404
         getClient().perform(get("/api/discover/browses/dateissued"))
-                   //The status has to be 200 OK
-                   .andExpect(status().isOk())
-                   //We expect the content type to be "application/hal+json;charset=UTF-8"
-                   .andExpect(content().contentType(contentType))
-
-                   //Check that the JSON root matches the expected browse index
-                   .andExpect(jsonPath("$", BrowseIndexMatcher.dateIssuedBrowseIndex("asc")))
+                   .andExpect(status().isNotFound())
         ;
     }
 
@@ -129,16 +127,10 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
 
     @Test
     public void findBrowseByVocabulary() throws Exception {
-        //Use srsc as this vocabulary is included by default
-        //When we call the root endpoint
+        // DATASHARE - srsc vocabulary is disabled via webui.browse.vocabularies.disabled
+        // so the srsc browse endpoint returns 404
         getClient().perform(get("/api/discover/browses/srsc"))
-                   //The status has to be 200 OK
-                   .andExpect(status().isOk())
-                   //We expect the content type to be "application/hal+json;charset=UTF-8"
-                   .andExpect(content().contentType(contentType))
-
-                   //Check that the JSON root matches the expected browse index
-                   .andExpect(jsonPath("$", BrowseIndexMatcher.hierarchicalBrowseIndex("srsc")))
+                   .andExpect(status().isNotFound())
         ;
     }
 
@@ -257,6 +249,185 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                                                 BrowseEntryResourceMatcher.matchBrowseEntry("ExtraEntry", 3),
                                                 BrowseEntryResourceMatcher.matchBrowseEntry("AnotherTest", 1)
                                        )));
+    }
+
+    @Test
+    public void findBrowseBySubjectEntriesPagination() throws Exception {
+        context.turnOffAuthorisationSystem();
+
+        //** GIVEN **
+        //1. A community-collection structure with one parent community with sub-community and two collections.
+        parentCommunity = CommunityBuilder.createCommunity(context)
+            .withName("Parent Community")
+            .build();
+        Community child1 = CommunityBuilder.createSubCommunity(context, parentCommunity)
+            .withName("Sub Community")
+            .build();
+        Collection col1 = CollectionBuilder.createCollection(context, child1).withName("Collection 1").build();
+        Collection col2 = CollectionBuilder.createCollection(context, child1).withName("Collection 2").build();
+
+        //2. Three public items that are readable by Anonymous with different subjects
+        Item publicItem1 = ItemBuilder.createItem(context, col1)
+            .withTitle("Public item 1")
+            .withIssueDate("2017-10-17")
+            .withAuthor("Smith, Donald").withAuthor("Doe, John")
+            .withSubject("ExtraEntry")
+            .build();
+
+        Item publicItem2 = ItemBuilder.createItem(context, col2)
+            .withTitle("Public item 2")
+            .withIssueDate("2016-02-13")
+            .withAuthor("Smith, Maria").withAuthor("Doe, Jane")
+            .withSubject("TestingForMore").withSubject("ExtraEntry")
+            .build();
+
+        Item publicItem3 = ItemBuilder.createItem(context, col2)
+            .withTitle("Public item 2")
+            .withIssueDate("2016-02-13")
+            .withAuthor("Smith, Maria").withAuthor("Doe, Jane")
+            .withSubject("AnotherTest").withSubject("TestingForMore")
+            .withSubject("ExtraEntry")
+            .build();
+        Item withdrawnItem1 = ItemBuilder.createItem(context, col2)
+            .withTitle("Withdrawn item 1")
+            .withIssueDate("2016-02-13")
+            .withAuthor("Smith, Maria").withAuthor("Doe, Jane")
+            .withSubject("AnotherTest").withSubject("TestingForMore")
+            .withSubject("ExtraEntry").withSubject("WithdrawnEntry")
+            .withdrawn()
+            .build();
+        Item privateItem1 = ItemBuilder.createItem(context, col2)
+            .withTitle("Private item 1")
+            .withIssueDate("2016-02-13")
+            .withAuthor("Smith, Maria").withAuthor("Doe, Jane")
+            .withSubject("AnotherTest").withSubject("TestingForMore")
+            .withSubject("ExtraEntry").withSubject("PrivateEntry")
+            .makeUnDiscoverable()
+            .build();
+
+
+
+        context.restoreAuthSystemState();
+
+        //** WHEN **
+        //An anonymous user browses this endpoint to find which subjects are currently in the repository
+        getClient().perform(get("/api/discover/browses/subject/entries")
+                .param("projection", "full")
+                .param("size", "1"))
+
+            //** THEN **
+            //The status has to be 200
+            .andExpect(status().isOk())
+
+            //We expect the content type to be "application/hal+json;charset=UTF-8"
+            .andExpect(content().contentType(contentType))
+            .andExpect(jsonPath("$.page.size", is(1)))
+            .andExpect(jsonPath("$.page.number", is(0)))
+            //Check that there are indeed 3 different subjects
+            .andExpect(jsonPath("$.page.totalElements", is(3)))
+            //Check that the subject matches as expected
+            .andExpect(jsonPath("$._embedded.entries",
+                contains(BrowseEntryResourceMatcher.matchBrowseEntry("AnotherTest", 1)
+                )));
+
+        getClient().perform(get("/api/discover/browses/subject/entries")
+                .param("projection", "full")
+                .param("size", "1")
+                .param("page","1"))
+
+            //** THEN **
+            //The status has to be 200
+            .andExpect(status().isOk())
+
+            //We expect the content type to be "application/hal+json;charset=UTF-8"
+            .andExpect(content().contentType(contentType))
+            .andExpect(jsonPath("$.page.size", is(1)))
+            .andExpect(jsonPath("$.page.number", is(1)))
+            //Check that there are indeed 3 different subjects
+            .andExpect(jsonPath("$.page.totalElements", is(3)))
+            //Check that the subject matches as expected
+            .andExpect(jsonPath("$._embedded.entries",
+                contains(BrowseEntryResourceMatcher.matchBrowseEntry("ExtraEntry", 3)
+                )));
+
+        getClient().perform(get("/api/discover/browses/subject/entries")
+                .param("projection", "full")
+                .param("size", "1")
+                .param("page","2"))
+
+            //** THEN **
+            //The status has to be 200
+            .andExpect(status().isOk())
+
+            //We expect the content type to be "application/hal+json;charset=UTF-8"
+            .andExpect(content().contentType(contentType))
+            .andExpect(jsonPath("$.page.size", is(1)))
+            .andExpect(jsonPath("$.page.number", is(2)))
+            //Check that there are indeed 3 different subjects
+            .andExpect(jsonPath("$.page.totalElements", is(3)))
+            //Check that the subject matches as expected
+            .andExpect(jsonPath("$._embedded.entries",
+                contains(BrowseEntryResourceMatcher.matchBrowseEntry("TestingForMore", 2)
+                )));
+
+        getClient().perform(get("/api/discover/browses/subject/entries")
+                .param("sort", "value,desc")
+                .param("size", "1"))
+
+            //** THEN **
+            //The status has to be 200
+            .andExpect(status().isOk())
+
+            //We expect the content type to be "application/hal+json;charset=UTF-8"
+            .andExpect(content().contentType(contentType))
+            .andExpect(jsonPath("$.page.size", is(1)))
+            .andExpect(jsonPath("$.page.number", is(0)))
+            //Check that there are indeed 3 different subjects
+            .andExpect(jsonPath("$.page.totalElements", is(3)))
+            //Check that the subject matches as expected
+            .andExpect(jsonPath("$._embedded.entries",
+                contains(BrowseEntryResourceMatcher.matchBrowseEntry("TestingForMore", 2)
+                )));
+
+        getClient().perform(get("/api/discover/browses/subject/entries")
+                .param("sort", "value,desc")
+                .param("size", "1")
+                .param("page","1"))
+
+            //** THEN **
+            //The status has to be 200
+            .andExpect(status().isOk())
+
+            //We expect the content type to be "application/hal+json;charset=UTF-8"
+            .andExpect(content().contentType(contentType))
+            .andExpect(jsonPath("$.page.size", is(1)))
+            .andExpect(jsonPath("$.page.number", is(1)))
+            //Check that there are indeed 3 different subjects
+            .andExpect(jsonPath("$.page.totalElements", is(3)))
+            //Check that the subject matches as expected
+            .andExpect(jsonPath("$._embedded.entries",
+                contains(BrowseEntryResourceMatcher.matchBrowseEntry("ExtraEntry", 3)
+                )));
+
+        getClient().perform(get("/api/discover/browses/subject/entries")
+                .param("sort", "value,desc")
+                .param("size", "1")
+                .param("page","2"))
+
+            //** THEN **
+            //The status has to be 200
+            .andExpect(status().isOk())
+
+            //We expect the content type to be "application/hal+json;charset=UTF-8"
+            .andExpect(content().contentType(contentType))
+            .andExpect(jsonPath("$.page.size", is(1)))
+            .andExpect(jsonPath("$.page.number", is(2)))
+            //Check that there are indeed 3 different subjects
+            .andExpect(jsonPath("$.page.totalElements", is(3)))
+            //Check that the subject matches as expected
+            .andExpect(jsonPath("$._embedded.entries",
+                contains(BrowseEntryResourceMatcher.matchBrowseEntry("AnotherTest", 1)
+                )));
     }
 
     @Test
@@ -776,7 +947,7 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                                         .withIssueDate("2017-08-10")
                                         .withAuthor("Mouse, Mickey")
                                         .withSubject("Cartoons").withSubject("Mice")
-                                        .withEmbargoPeriod("12 months")
+                                        .withEmbargoPeriod(Period.ofMonths(12))
                                         .build();
 
         //5. An item that is only readable for an internal groups
@@ -909,7 +1080,7 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                                         .withIssueDate("2017-08-10")
                                         .withAuthor("Mouse, Mickey")
                                         .withSubject("Cartoons").withSubject("Mice")
-                                        .withEmbargoPeriod("12 months")
+                                        .withEmbargoPeriod(Period.ofMonths(12))
                                         .build();
 
         //5. An item that is only readable for an internal groups
@@ -1128,9 +1299,10 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses the items in the Browse by date issued endpoint
-        //sorted ascending by tile with a page size of 5
-        getClient().perform(get("/api/discover/browses/dateissued/items")
+        //An anonymous user browses the items in the Browse by title endpoint
+        //sorted ascending by title with a page size of 5
+        // DATASHARE - changed from dateissued to title browse (no dateissued browse in DataShare)
+        getClient().perform(get("/api/discover/browses/title/items")
                                 .param("sort", "title,asc")
                                 .param("size", "5"))
 
@@ -1161,7 +1333,7 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                                        )));
 
         //The next page gives us the last two items
-        getClient().perform(get("/api/discover/browses/dateissued/items")
+        getClient().perform(get("/api/discover/browses/title/items")
                                 .param("sort", "title,asc")
                                 .param("size", "5")
                                 .param("page", "1"))
@@ -1187,7 +1359,7 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
 
         String adminToken = getAuthToken(admin.getEmail(), password);
         //The next page gives us the last two items
-        getClient(adminToken).perform(get("/api/discover/browses/dateissued/items")
+        getClient(adminToken).perform(get("/api/discover/browses/title/items")
                                 .param("sort", "title,asc")
                                 .param("size", "5")
                                 .param("page", "1"))
@@ -1278,9 +1450,10 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
         context.restoreAuthSystemState();
 
         //** WHEN **
-        //An anonymous user browses the items in the Browse by date issued endpoint
-        //sorted ascending by tile with a page size of 5
-        getClient().perform(get("/api/discover/browses/dateissued/items")
+        //An anonymous user browses the items in the Browse by title endpoint
+        //sorted ascending by title with a page size of 5
+        // DATASHARE - changed from dateissued to title browse (no dateissued browse in DataShare)
+        getClient().perform(get("/api/discover/browses/title/items")
                                 .param("scope", String.valueOf(col2.getID()))
                                 .param("sort", "title,asc")
                                 .param("size", "5"))
@@ -1309,7 +1482,7 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                                        )));
 
         String adminToken = getAuthToken(admin.getEmail(), password);
-        getClient(adminToken).perform(get("/api/discover/browses/dateissued/items")
+        getClient(adminToken).perform(get("/api/discover/browses/title/items")
                                 .param("scope", String.valueOf(col2.getID()))
                                 .param("sort", "title,asc")
                                 .param("size", "5"))
@@ -1664,8 +1837,10 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                                 .withSubject("Science Fiction")
                                 .build();
 
+        // DATASHARE - renamed from "Python" to "Javanese" to share title prefix with "Java"
+        // for title browse startsWith testing (no dateissued browse in DataShare)
         Item item3 = ItemBuilder.createItem(context, col1)
-                                .withTitle("Python")
+                                .withTitle("Javanese")
                                 .withAuthor("Van Rossum, Guido")
                                 .withIssueDate("1990")
                                 .withSubject("Computing")
@@ -1703,9 +1878,10 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
 
         // ---- BROWSES BY ITEM ----
         //** WHEN **
-        //An anonymous user browses the items in the Browse by date issued endpoint
-        //with startsWith set to 199
-        getClient().perform(get("/api/discover/browses/dateissued/items?startsWith=199")
+        //An anonymous user browses the items in the Browse by title endpoint
+        //with startsWith set to Java
+        // DATASHARE - changed from dateissued to title browse (no dateissued browse in DataShare)
+        getClient().perform(get("/api/discover/browses/title/items?startsWith=Java")
                                 .param("size", "2"))
 
                    //** THEN **
@@ -1720,12 +1896,12 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                    .andExpect(jsonPath("$.page.number", is(0)))
                    .andExpect(jsonPath("$.page.size", is(2)))
 
-                   //Verify that the index jumps to the "Python" item.
+                   //Verify that the index contains "Java" and "Javanese" items.
                    .andExpect(jsonPath("$._embedded.items",
-                                       contains(ItemMatcher.matchItemWithTitleAndDateIssued(item3,
-                                                                                            "Python", "1990"),
-                                                ItemMatcher.matchItemWithTitleAndDateIssued(item4,
-                                                                                            "Java", "1995-05-23")
+                                       contains(ItemMatcher.matchItemWithTitleAndDateIssued(item4,
+                                                                                            "Java", "1995-05-23"),
+                                                ItemMatcher.matchItemWithTitleAndDateIssued(item3,
+                                                                                            "Javanese", "1990")
                                        )));
         //** WHEN **
         //An anonymous user browses the items in the Browse by Title endpoint
@@ -1850,7 +2026,7 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                                 .build();
 
         Item item5 = ItemBuilder.createItem(context, col1)
-                                .withTitle("Python")
+                                .withTitle("Java 2")
                                 .withAuthor("Van Rossum, Guido")
                                 .withIssueDate("1990")
                                 .withSubject("Computing")
@@ -1875,9 +2051,10 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
         // ---- BROWSES BY ITEM ----
 
         //** WHEN **
-        //An anonymous user browses the items in the Browse by date issued endpoint
-        //with startsWith set to 199 and Page to 1
-        getClient().perform(get("/api/discover/browses/dateissued/items?startsWith=199")
+        //An anonymous user browses the items in the Browse by title endpoint
+        //with startsWith set to Java and Page to 1
+        // DATASHARE - changed from dateissued to title browse (no dateissued browse in DataShare)
+        getClient().perform(get("/api/discover/browses/title/items?startsWith=Java")
                                 .param("size", "1").param("page", "1"))
 
                    //** THEN **
@@ -1891,12 +2068,12 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                    //We expect to jump to page 1 of the index
                    .andExpect(jsonPath("$.page.number", is(1)))
                    .andExpect(jsonPath("$.page.size", is(1)))
-                   .andExpect(jsonPath("$._links.self.href", containsString("startsWith=199")))
+                   .andExpect(jsonPath("$._links.self.href", containsString("startsWith=Java")))
 
-                   //Verify that the index jumps to the "Java" item.
+                   //Verify that the index jumps to the "Java 2" item.
                    .andExpect(jsonPath("$._embedded.items",
                         contains(
-                            ItemMatcher.matchItemWithTitleAndDateIssued(item3, "Java", "1995-05-23")
+                            ItemMatcher.matchItemWithTitleAndDateIssued(item5, "Java 2", "1990")
                         )));
     }
 
@@ -2127,7 +2304,8 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
 
         context.restoreAuthSystemState();
 
-        getClient().perform(get("/api/discover/browses/dateissued/items")
+        // DATASHARE - changed from dateissued to title browse (no dateissued browse in DataShare)
+        getClient().perform(get("/api/discover/browses/title/items")
                                 .param("projection", "full"))
 
                    .andExpect(status().isOk())
@@ -2136,7 +2314,7 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                        jsonPath("$._embedded.items[0]._embedded.owningCollection._embedded.adminGroup").doesNotExist());
 
         String adminToken = getAuthToken(admin.getEmail(), password);
-        getClient(adminToken).perform(get("/api/discover/browses/dateissued/items")
+        getClient(adminToken).perform(get("/api/discover/browses/title/items")
                                           .param("projection", "full"))
                              .andExpect(status().isOk())
                              .andExpect(jsonPath("$._embedded.items[0]._embedded.owningCollection._embedded.adminGroup",
