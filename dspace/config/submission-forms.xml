@@ -1,4 +1,4 @@
-﻿<?xml version="1.0"?>
+<?xml version="1.0"?>
 <!DOCTYPE input-forms SYSTEM "submission-forms.dtd">
 
 
@@ -145,7 +145,7 @@
                     <label>Data Publisher</label>
                     <input-type>onebox</input-type>
                     <hint> Enter the organisation or service responsible for making the data
-                        available using the following convention.Â  Example: "University of
+                        available using the following convention.  Example: "University of
                         Edinburgh. School of GeoSciences. Institute of Geography" </hint>
                     <required>Publisher is mandatory.</required>
                 </field>
@@ -261,7 +261,7 @@
                     <repeatable>true</repeatable>
                     <label>Publications and other outputs</label>
                     <input-type>onebox</input-type>
-                    <hint> Does this data support a manuscript or research output?Â  If so, please
+                    <hint> Does this data support a manuscript or research output?  If so, please
                         provide the persistent identifier such as a DOI. An identifier for an Open
                         Access version of the research output is preferred, if available. If your
                         output is in submission or under review, please provide the working title,
@@ -893,8 +893,8 @@
                 <stored-value>NIHR - National Institute for Health Research</stored-value>
             </pair>
             <pair>
-                <displayed-value>NSF â€“ National Science Foundation</displayed-value>
-                <stored-value>NSF â€“ National Science Foundation</stored-value>
+                <displayed-value>NSF – National Science Foundation</displayed-value>
+                <stored-value>NSF – National Science Foundation</stored-value>
             </pair>
             <pair>
                 <displayed-value>SFI - Science Foundation Ireland</displayed-value>
@@ -1077,7 +1077,7 @@
                 <stored-value>AF</stored-value>
             </pair>
             <pair>
-                <displayed-value>Ã…LAND ISLANDS</displayed-value>
+                <displayed-value>ÅLAND ISLANDS</displayed-value>
                 <stored-value>AX</stored-value>
             </pair>
             <pair>
@@ -1289,7 +1289,7 @@
                 <stored-value>CR</stored-value>
             </pair>
             <pair>
-                <displayed-value>CÃ”TE D'IVOIRE</displayed-value>
+                <displayed-value>CÔTE D'IVOIRE</displayed-value>
                 <stored-value>CI</stored-value>
             </pair>
             <pair>
@@ -1301,7 +1301,7 @@
                 <stored-value>CU</stored-value>
             </pair>
             <pair>
-                <displayed-value>CURAÃ‡AO</displayed-value>
+                <displayed-value>CURAÇAO</displayed-value>
                 <stored-value>CW</stored-value>
             </pair>
             <pair>
@@ -1797,7 +1797,7 @@
                 <stored-value>QA</stored-value>
             </pair>
             <pair>
-                <displayed-value>RÃ‰UNION</displayed-value>
+                <displayed-value>RÉUNION</displayed-value>
                 <stored-value>RE</stored-value>
             </pair>
             <pair>
@@ -1813,7 +1813,7 @@
                 <stored-value>RW</stored-value>
             </pair>
             <pair>
-                <displayed-value>SAINT BARTHÃ‰LEMY</displayed-value>
+                <displayed-value>SAINT BARTHÉLEMY</displayed-value>
                 <stored-value>BL</stored-value>
             </pair>
             <pair>
@@ -2067,11 +2067,6 @@
 
         </value-pairs>
 
-        <!-- OpenAIRE document types
-             https://openaire-guidelines-for-literature-repository-managers.readthedocs.io/en/4.0.1/field_publicationtype.html
-             Based on COAR Vocabularies -> Controlled Vocabulary for Resource Type Genres (Version 2.0):
-             http://vocabularies.coar-repositories.org/documentation/resource_types/
-        -->
         <value-pairs value-pairs-name="openaire_types" dc-term="type">
             <pair>
                 <displayed-value>Interactive Resource</displayed-value>
