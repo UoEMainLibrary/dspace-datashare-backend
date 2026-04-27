@@ -139,6 +139,20 @@
 
   <dc-type>
 	<schema>dc</schema>
+    <element>coverage</element>
+    <qualifier>startDate</qualifier>
+    <scope_note>Start date for temporal coverage.</scope_note>
+  </dc-type>
+
+  <dc-type>
+	<schema>dc</schema>
+    <element>coverage</element>
+    <qualifier>endDate</qualifier>
+    <scope_note>End date for temporal coverage.</scope_note>
+  </dc-type>
+
+  <dc-type>
+	<schema>dc</schema>
     <element>creator</element>
     <!-- unqualified -->
     <scope_note>Do not use; only for harvested metadata.</scope_note>
@@ -165,6 +179,13 @@
     <element>date</element>
     <qualifier>available</qualifier>
     <scope_note>Date or date range item became available to the public.</scope_note>
+  </dc-type>
+
+  <dc-type>
+	<schema>dc</schema>
+    <element>date</element>
+    <qualifier>embargo</qualifier>
+    <scope_note>Date on which embargo expires and files become available.</scope_note>
   </dc-type>
 
   <dc-type>
