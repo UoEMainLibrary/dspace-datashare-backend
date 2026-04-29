@@ -18,7 +18,6 @@ import java.util.List;
 import com.lyncode.xoai.dataprovider.xml.xoai.Element;
 import com.lyncode.xoai.dataprovider.xml.xoai.Metadata;
 import com.lyncode.xoai.util.Base64Utils;
-import org.apache.commons.text.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.dspace.app.util.factory.UtilServiceFactory;
@@ -167,16 +166,63 @@ public class ItemUtils {
     }
 
     /**
-     * Sanitizes a string to remove characters that are invalid
-     * in XML 1.0 using the Apache Commons Text library.
+     * Sanitizes a string by removing characters that are not allowed in XML 1.0.
+     *
+     * <p>Per the XML 1.0 specification, the only valid characters are:
+     * <code>#x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]</code>.
+     * Any other code point (control characters below 0x20 except TAB/LF/CR, the
+     * surrogate range U+D800-U+DFFF and the non-characters U+FFFE/U+FFFF) would
+     * cause the produced OAI-PMH XML to be rejected by harvesters.</p>
+     *
+     * <p><strong>Important:</strong> this method intentionally does <em>not</em>
+     * escape XML entities ({@code &}, {@code <}, {@code >}, {@code "}, {@code '}).
+     * Escaping is the responsibility of the XOAI XML serializer further down the
+     * pipeline. Pre-escaping here would cause double-escaping (e.g. an apostrophe
+     * stored as {@code '} would be rendered as {@code &amp;apos;} instead of
+     * {@code '}), which is the regression introduced by the upstream
+     * {@code StringEscapeUtils.escapeXml10()} based fix for DSpace issue #10721.</p>
+     *
      * @param value The string to sanitize.
-     * @return A sanitized string, or null if the input was null.
+     * @return A sanitized string, or {@code null} if the input was {@code null}.
      */
     private static String sanitize(String value) {
         if (value == null) {
             return null;
         }
-        return StringEscapeUtils.escapeXml10(value);
+        final int length = value.length();
+        StringBuilder sb = null;
+        int i = 0;
+        while (i < length) {
+            int cp = value.codePointAt(i);
+            int cpLen = Character.charCount(cp);
+            if (isValidXml10Char(cp)) {
+                if (sb != null) {
+                    sb.appendCodePoint(cp);
+                }
+            } else {
+                if (sb == null) {
+                    sb = new StringBuilder(length);
+                    sb.append(value, 0, i);
+                }
+                // skip the invalid code point
+            }
+            i += cpLen;
+        }
+        return sb == null ? value : sb.toString();
+    }
+
+    /**
+     * Returns {@code true} if the given Unicode code point is a valid XML 1.0
+     * character per <a href="https://www.w3.org/TR/xml/#charsets">section 2.2 of
+     * the XML 1.0 specification</a>.
+     */
+    private static boolean isValidXml10Char(int cp) {
+        return cp == 0x9
+            || cp == 0xA
+            || cp == 0xD
+            || (cp >= 0x20 && cp <= 0xD7FF)
+            || (cp >= 0xE000 && cp <= 0xFFFD)
+            || (cp >= 0x10000 && cp <= 0x10FFFF);
     }
 
     /**
