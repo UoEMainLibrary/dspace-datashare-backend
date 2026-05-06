@@ -58,8 +58,8 @@ import org.dspace.statistics.export.service.FailedOpenURLTrackerService;
 import org.dspace.usage.UsageEvent;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
 import org.junit.Ignore;
+import org.junit.Test;
 
 /**
  * Test class for the IrusExportUsageEventListener
@@ -118,6 +118,7 @@ public class ITIrusExportUsageEventListener extends AbstractIntegrationTestWithD
         configurationService.setProperty("irus.statistics.tracker.enabled", true);
         configurationService.setProperty("irus.statistics.tracker.type-field", "dc.type");
         configurationService.setProperty("irus.statistics.tracker.type-value", "Excluded type");
+        configurationService.setProperty("oai.identifier.prefix", "localhost");
 
 
         context.turnOffAuthorisationSystem();

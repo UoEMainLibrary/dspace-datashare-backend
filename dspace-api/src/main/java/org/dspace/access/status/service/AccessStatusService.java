@@ -9,6 +9,7 @@ package org.dspace.access.status.service;
 
 import java.sql.SQLException;
 
+import org.dspace.content.Bitstream;
 import org.dspace.content.Item;
 import org.dspace.core.Context;
 
@@ -54,4 +55,24 @@ public interface AccessStatusService {
      * @throws SQLException An exception that provides information on a database access error or other errors.
      */
     public String getEmbargoFromItem(Context context, Item item) throws SQLException;
+
+    /**
+     * Calculate the access status for a Bitstream.
+     *
+     * @param context   the DSpace context
+     * @param bitstream the bitstream
+     * @return an access status value
+     * @throws SQLException An exception that provides information on a database access error or other errors.
+     */
+    public String getAccessStatusFromBitstream(Context context, Bitstream bitstream) throws SQLException;
+
+    /**
+     * Retrieve embargo information for a Bitstream.
+     *
+     * @param context   the DSpace context
+     * @param bitstream the bitstream to check for embargo information
+     * @return an embargo date string
+     * @throws SQLException An exception that provides information on a database access error or other errors.
+     */
+    public String getEmbargoFromBitstream(Context context, Bitstream bitstream) throws SQLException;
 }

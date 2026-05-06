@@ -98,20 +98,49 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
     /**
      * This field has been created to easily modify the tests when updating the defaultConfiguration's sidebar facets
      */
+    // DATASHARE - added dateAccessioned and dateEmbargo facets
     List<Matcher<? super Object>> customSidebarFacets = List.of(
+        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date")
     );
 
     /**
      * This field has been created to easily modify the tests when updating the defaultConfiguration's search filters
      */
+    // DATASHARE - added dateAccessioned and dateEmbargo search filters
     List<Matcher<? super Object>> customSearchFilters = List.of(
+        SearchFilterMatcher.dateAccessionedFilter(),
+        SearchFilterMatcher.dateEmbargoFilter()
     );
 
     /**
      * This field has been created to easily modify the tests when updating the defaultConfiguration's sort fields
      */
+    // DATASHARE - added dateEmbargo sort (dateAccessioned already in standard list)
     List<Matcher<? super Object>> customSortFields = List.of(
     );
+
+    /**
+     * Original value of the discovery.highlights.escape-html property, saved here to restore it after running the
+     * tests.
+     */
+    boolean escapeHTML;
+
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+        context.turnOffAuthorisationSystem();
+        escapeHTML = configurationService.getBooleanProperty("discovery.highlights.escape-html");
+        context.restoreAuthSystemState();
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        context.turnOffAuthorisationSystem();
+        configurationService.setProperty("discovery.highlights.escape-html", escapeHTML);
+        context.restoreAuthSystemState();
+        super.destroy();
+    }
 
     @Test
     public void rootDiscoverTest() throws Exception {
@@ -1241,8 +1270,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
             SearchFilterMatcher.isJournalOfPublicationRelation()
         ));
 
-        List<Matcher<? super Object>> allExpectedSortFields = new ArrayList<>(customSortFields);
-        allExpectedSortFields.addAll(List.of(
+        List<Matcher<? super Object>> allExpectedSortFields = new ArrayList<>(List.of(
             SortOptionMatcher.sortOptionMatcher(
                 "score", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
             SortOptionMatcher.sortOptionMatcher(
@@ -1250,7 +1278,10 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
             SortOptionMatcher.sortOptionMatcher(
                 "dc.date.issued", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
             SortOptionMatcher.sortOptionMatcher(
-                "dc.date.accessioned", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name())
+                "dc.date.accessioned", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name()),
+            // DATASHARE - added dateEmbargo sort
+            SortOptionMatcher.sortOptionMatcher(
+                "dc.date.embargo", DiscoverySortFieldConfiguration.SORT_ORDER.desc.name())
         ));
 
         //When calling this root endpoint
@@ -1322,7 +1353,7 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
         context.restoreAuthSystemState();
 
         getClient().perform(get("/api/discover/search/objects")
-                   .param("sort", "dc.date.accessioned, ASC")
+                   .param("sort", "dc.date.available, ASC")
                    .param("configuration", "workspace"))
                    .andExpect(status().isUnprocessableEntity());
     }
@@ -4549,7 +4580,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false)
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date")
                 )))
                 //There always needs to be a self link
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
@@ -4595,7 +4627,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false)
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date")
                 )))
                 //There always needs to be a self link
                 .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")))
@@ -4779,7 +4812,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -4829,7 +4863,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -4862,7 +4897,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -5076,7 +5112,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
                 .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                         FacetEntryMatcher.resourceTypeFacet(false),
                         FacetEntryMatcher.typeFacet(false),
-                        FacetEntryMatcher.dateIssuedFacet(false),
+                        FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                        FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                         FacetEntryMatcher.submitterFacet(false)
                 )))
                 //There always needs to be a self link
@@ -5824,7 +5861,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         getClient(adminToken).perform(get("/api/discover/search/objects")
                              .param("configuration", "workflow")
-                             .param("sort", "dc.date.issued,DESC")
+                             // DATASHARE - sortDateIssued commented in workflowConfiguration, use accessioned
+                             .param("sort", "dc.date.accessioned,DESC")
                              .param("query", "Mathematical Theory"))
                          .andExpect(status().isOk())
                          .andExpect(jsonPath("$.query", is("Mathematical Theory")))
@@ -5836,7 +5874,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         getClient(adminToken).perform(get("/api/discover/search/objects")
                              .param("configuration", "workflow")
-                             .param("sort", "dc.date.issued,DESC")
+                             // DATASHARE - sortDateIssued commented in workflowConfiguration, use accessioned
+                             .param("sort", "dc.date.accessioned,DESC")
                              .param("query", "Metaphysics"))
                          .andExpect(status().isOk())
                          .andExpect(jsonPath("$.query", is("Metaphysics")))
@@ -5900,7 +5939,8 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
 
         getClient(adminToken).perform(get("/api/discover/search/objects")
                              .param("configuration", "workflow")
-                             .param("sort", "dc.date.issued,DESC")
+                             // DATASHARE - sortDateIssued commented in workflowConfiguration, use accessioned
+                             .param("sort", "dc.date.accessioned,DESC")
                              .param("query", ""))
                          .andExpect(status().isOk())
                          .andExpect(jsonPath("$.configuration", is("workflow")))
@@ -6850,12 +6890,13 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
             .andExpect(jsonPath("$._embedded.facets", Matchers.containsInAnyOrder(
                 FacetEntryMatcher.resourceTypeFacet(false),
                 FacetEntryMatcher.typeFacet(false),
-                FacetEntryMatcher.dateIssuedFacet(false),
+                FacetEntryMatcher.matchFacet(false, "dateAccessioned", "date"),
+                FacetEntryMatcher.matchFacet(false, "dateEmbargo", "date"),
                 FacetEntryMatcher.submitterFacet(false),
                 FacetEntryMatcher.supervisedByFacet(false)
             )))
             //check supervisedBy Facet values
-            .andExpect(jsonPath("$._embedded.facets[4]._embedded.values",
+            .andExpect(jsonPath("$._embedded.facets[5]._embedded.values",
                 contains(
                     entrySupervisedBy(groupA.getName(), groupA.getID().toString(), 6),
                     entrySupervisedBy(groupB.getName(), groupB.getID().toString(), 2)
@@ -7007,4 +7048,59 @@ public class DiscoveryRestControllerIT extends AbstractControllerIntegrationTest
             .andExpect(jsonPath("$._links.self.href", containsString("/api/discover/search/objects")));
     }
 
+    @Test
+    public void discoverSearchObjectsFirstEscapeHTMLTagsBeforeApplyingHitHighlights() throws Exception {
+        context.turnOffAuthorisationSystem();
+        configurationService.setProperty("discovery.highlights.escape-html", true);
+        parentCommunity = CommunityBuilder.createCommunity(context)
+                                          .withName("Parent Community")
+                                          .build();
+
+        Collection col1 = CollectionBuilder.createCollection(context, parentCommunity)
+                                           .withName("Collection")
+                                           .build();
+
+        ItemBuilder.createItem(context, col1)
+                                .withTitle("This is a <a>test</a> title")
+                                .build();
+        context.restoreAuthSystemState();
+
+        // This test proves that the HTML tags that are in the original metadata, like <a>test</a>,
+        // are now escaped and should be returned like &lt;a&gt;test&lt;&#x2F;a&gt;
+        // Only after this happens should the hit highlights be applied
+        getClient().perform(get("/api/discover/search/objects")
+                                    .param("query", "title"))
+                             .andExpect(status().isOk())
+                             .andExpect(jsonPath(
+                                     "$._embedded.searchResult._embedded.objects[0].hitHighlights['dc.title']",
+                                     contains("This is a &lt;a&gt;test&lt;&#x2F;a&gt; <em>title</em>")));
+    }
+
+    @Test
+    public void discoverSearchObjectsDontEscapeHTMLTagsBeforeApplyingHitHighlights() throws Exception {
+        context.turnOffAuthorisationSystem();
+        configurationService.setProperty("discovery.highlights.escape-html", false);
+        parentCommunity = CommunityBuilder.createCommunity(context)
+            .withName("Parent Community")
+            .build();
+
+        Collection col1 = CollectionBuilder.createCollection(context, parentCommunity)
+            .withName("Collection")
+            .build();
+
+        ItemBuilder.createItem(context, col1)
+            .withTitle("This is a <a>test</a> title")
+            .build();
+        context.restoreAuthSystemState();
+
+        // This test proves that the HTML tags that are in the original metadata, like <a>test</a>,
+        // are not escaped and should be returned like <a>test</a>
+        // Only after this happens should the hit highlights be applied
+        getClient().perform(get("/api/discover/search/objects")
+                                .param("query", "title"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath(
+                "$._embedded.searchResult._embedded.objects[0].hitHighlights['dc.title']",
+                contains("This is a <a>test</a> <em>title</em>")));
+    }
 }

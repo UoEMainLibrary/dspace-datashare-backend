@@ -53,6 +53,8 @@ public class ItemAccessStatusLinkRepository extends AbstractDSpaceRestRepository
             AccessStatusRest accessStatusRest = new AccessStatusRest();
             String accessStatus = accessStatusService.getAccessStatus(context, item);
             accessStatusRest.setStatus(accessStatus);
+            String embargoDate = accessStatusService.getEmbargoFromItem(context, item);
+            accessStatusRest.setEmbargoDate(embargoDate);
             return accessStatusRest;
         } catch (SQLException e) {
             throw new RuntimeException(e);

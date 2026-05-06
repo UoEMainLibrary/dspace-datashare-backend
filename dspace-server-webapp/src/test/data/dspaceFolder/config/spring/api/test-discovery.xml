@@ -1292,5 +1292,140 @@
         <property name="exposeMinAndMaxValue" value="true"/>
     </bean>
 
+    <!--
+        Override defaultConfiguration for tests:
+        Adds searchFilterIssued and sortDateIssued which are commented out in the
+        production discovery.xml (DataShare does not use them), but are expected
+        by upstream DSpace integration tests.
+    -->
+    <bean id="defaultConfiguration" class="org.dspace.discovery.configuration.DiscoveryConfiguration" scope="prototype">
+        <!--Which sidebar facets are to be displayed-->
+        <property name="sidebarFacets">
+            <list>
+                <ref bean="searchFilterAuthor" />
+                <ref bean="searchFilterSubject" />
+                <ref bean="searchFilterAccessioned" />
+                <ref bean="searchFilterEmbargo" />
+                <ref bean="searchFilterIssued" />
+                <ref bean="searchFilterContentInOriginalBundle"/>
+                <ref bean="searchFilterEntityType"/>
+            </list>
+        </property>
+        <!-- Set TagCloud configuration per discovery configuration -->
+        <property name="tagCloudFacetConfiguration" ref="defaultTagCloudFacetConfiguration"/>
+        <!--The search filters which can be used on the discovery search page-->
+        <property name="searchFilters">
+            <list>
+                <ref bean="searchFilterTitle" />
+                <ref bean="searchFilterAuthor" />
+                <ref bean="searchFilterSubject" />
+                <ref bean="searchFilterAccessioned" />
+                <ref bean="searchFilterEmbargo" />
+                <ref bean="searchFilterIssued" />
+                <ref bean="searchFilterContentInOriginalBundle"/>
+                <ref bean="searchFilterFileNameInOriginalBundle" />
+                <ref bean="searchFilterFileDescriptionInOriginalBundle" />
+                <ref bean="searchFilterEntityType"/>
+                <ref bean="searchFilterIsAuthorOfPublicationRelation"/>
+                <ref bean="searchFilterIsProjectOfPublicationRelation"/>
+                <ref bean="searchFilterIsOrgUnitOfPublicationRelation"/>
+                <ref bean="searchFilterIsPublicationOfJournalIssueRelation"/>
+                <ref bean="searchFilterIsJournalOfPublicationRelation"/>
+            </list>
+        </property>
+        <!--The sort filters for the discovery search-->
+        <property name="searchSortConfiguration">
+            <bean class="org.dspace.discovery.configuration.DiscoverySortConfiguration">
+                <property name="sortFields">
+                    <list>
+                        <ref bean="sortScore" />
+                        <ref bean="sortTitle" />
+                        <ref bean="sortDateIssued" />
+                        <ref bean="sortDateAccessioned" />
+                        <ref bean="sortDateEmbargo" />
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <!--Any default filter queries, these filter queries will be used for all
+            queries done by discovery for this configuration -->
+        <property name="defaultFilterQueries">
+            <list>
+                <value>(search.resourcetype:Item AND latestVersion:true) OR search.resourcetype:Collection OR search.resourcetype:Community</value>
+                <value>-withdrawn:true AND -discoverable:false</value>
+            </list>
+        </property>
+        <property name="recentSubmissionConfiguration">
+            <bean class="org.dspace.discovery.configuration.DiscoveryRecentSubmissionsConfiguration">
+                <property name="metadataSortField" value="dc.date.accessioned" />
+                <property name="type" value="date"/>
+                <property name="max" value="20"/>
+                <property name="useAsHomePage" value="false"/>
+            </bean>
+        </property>
+        <property name="defaultRpp" value="10" />
+        <property name="hitHighlightingConfiguration">
+            <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightingConfiguration">
+                <property name="metadataFields">
+                    <list>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="dc.contributor.author"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="dspace.entity.type"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="person.identifier.jobtitle"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="project.identifier.name"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="dc.description.abstract"/>
+                            <property name="maxSize" value="250"/>
+                            <property name="snippets" value="2"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="dc.title"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="organization.legalName"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="person.givenName"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                        <bean class="org.dspace.discovery.configuration.DiscoveryHitHighlightFieldConfiguration">
+                            <property name="field" value="person.familyName"/>
+                            <property name="snippets" value="5"/>
+                        </bean>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="moreLikeThisConfiguration">
+            <bean class="org.dspace.discovery.configuration.DiscoveryMoreLikeThisConfiguration">
+                <property name="similarityMetadataFields">
+                    <list>
+                        <value>dc.title</value>
+                        <value>dc.contributor.author</value>
+                        <value>dc.creator</value>
+                        <value>dc.subject</value>
+                    </list>
+                </property>
+                <property name="minTermFrequency" value="5"/>
+                <property name="max" value="3"/>
+                <property name="minWordLength" value="5"/>
+            </bean>
+        </property>
+        <property name="spellCheckEnabled" value="true"/>
+    </bean>
+
 
 </beans>
