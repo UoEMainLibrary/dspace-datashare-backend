@@ -51,7 +51,6 @@
          the DOIIdentifierProvider or the VersionedDOIIdentifierProvider,
          depending on whether you have Item Level Versioning activated or not.
     -->
-    <!--
     <bean id="org.dspace.identifier.DOIIdentifierProvider"
         class="org.dspace.identifier.DOIIdentifierProvider"
         scope="singleton">
@@ -60,7 +59,6 @@
         <property name="DOIConnector"
             ref="org.dspace.identifier.doi.DOIConnector" />
     </bean>
-    -->
     <!--
     <bean id="org.dspace.identifier.DOIIdentifierProvider"
         class="org.dspace.identifier.VersionedDOIIdentifierProvider"
@@ -100,8 +98,8 @@
     <!-- Uncomment this to use the DataCite API directly as DOIConnector.-->
     <!-- // DATASHARE - start -->
     <bean id="org.dspace.identifier.doi.DOIConnector"
-          class="org.dspace.identifier.doi.DataCiteConnector"
-          scope="singleton">
+        class="org.dspace.identifier.doi.DataCiteConnector"
+        scope="singleton">
         <property name='DATACITE_SCHEME' value='https'/>
         <property name='DATACITE_HOST' value='mds.datacite.org'/>
         <property name='DATACITE_DOI_PATH' value='/doi/' />
