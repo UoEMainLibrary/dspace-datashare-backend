@@ -7,12 +7,12 @@
 --
 
 CREATE TABLE report_result (
-                               report_result_id integer NOT NULL PRIMARY KEY,
-                               type varchar(256),
-                               value TEXT,
-                               executor_id UUID REFERENCES EPerson(uuid) ON DELETE SET NULL,
-                               args TEXT,
-                               last_modified TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    report_result_id integer NOT NULL PRIMARY KEY,
+    type varchar(256),
+    value TEXT,
+    executor_id UUID REFERENCES EPerson(uuid) ON DELETE SET NULL,
+    args TEXT,
+    last_modified TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 --
@@ -27,5 +27,5 @@ CREATE SEQUENCE report_result_id_seq
     CACHE 1;
 
 ALTER TABLE report_result
-    ALTER COLUMN report_result_id
-        SET DEFAULT nextval('report_result_id_seq');
+  ALTER COLUMN report_result_id
+    SET DEFAULT nextval('report_result_id_seq');
