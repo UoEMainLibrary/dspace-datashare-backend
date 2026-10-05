@@ -22,7 +22,7 @@ DELETE FROM metadatavalue
 WHERE metadata_field_id IN (
     SELECT mfr.metadata_field_id
     FROM metadatafieldregistry mfr
-             JOIN metadataschemaregistry msr ON mfr.metadata_schema_id = msr.metadata_schema_id
+    JOIN metadataschemaregistry msr ON mfr.metadata_schema_id = msr.metadata_schema_id
     WHERE msr.short_id = 'ds'
 );
 
