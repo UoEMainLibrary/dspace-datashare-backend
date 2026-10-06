@@ -12,7 +12,7 @@
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
--- Insert into ds.timeperiod.start-date
+-- Insert into ds.timeperiod.start-date 
 INSERT INTO metadatafieldregistry (metadata_schema_id, element, qualifier)
   SELECT (SELECT metadata_schema_id FROM metadataschemaregistry WHERE short_id='ds'), 'timeperiod', 'start-date'
     WHERE NOT EXISTS (SELECT metadata_field_id,element,qualifier FROM metadatafieldregistry WHERE element = 'timeperiod' AND qualifier='start-date' AND metadata_schema_id = (SELECT metadata_schema_id FROM metadataschemaregistry WHERE short_id='ds'));
