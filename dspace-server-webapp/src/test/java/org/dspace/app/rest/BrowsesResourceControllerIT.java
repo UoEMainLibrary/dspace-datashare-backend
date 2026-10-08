@@ -1890,8 +1890,8 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                    //We expect the content type to be "application/hal+json;charset=UTF-8"
                    .andExpect(content().contentType(contentType))
 
-                   //We expect the totalElements to be the 2 items present in the repository
-                   .andExpect(jsonPath("$.page.totalElements", is(2)))
+                   //We expect the totalElements to be the 5 items from 1990 til now
+                   .andExpect(jsonPath("$.page.totalElements", is(5)))
                    //We expect to jump to page 1 of the index
                    .andExpect(jsonPath("$.page.number", is(0)))
                    .andExpect(jsonPath("$.page.size", is(2)))
@@ -2063,8 +2063,8 @@ public class BrowsesResourceControllerIT extends AbstractControllerIntegrationTe
                    //We expect the content type to be "application/hal+json;charset=UTF-8"
                    .andExpect(content().contentType(contentType))
 
-                   //We expect the totalElements to be the 2 items present in the repository
-                   .andExpect(jsonPath("$.page.totalElements", is(2)))
+                   //We expect the totalElements to be the 5 items present in the repository from 1990 until now
+                   .andExpect(jsonPath("$.page.totalElements", is(5)))
                    //We expect to jump to page 1 of the index
                    .andExpect(jsonPath("$.page.number", is(1)))
                    .andExpect(jsonPath("$.page.size", is(1)))
