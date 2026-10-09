@@ -130,20 +130,20 @@ public class S3BitStoreService extends BaseBitStoreService {
      * @return builder with the specified parameters
      */
     protected static Supplier<S3AsyncClient> amazonClientBuilderBy(
-        Region region,
-        AwsCredentialsProvider credentialsProvider,
-        String endpoint,
-        double targetThroughput,
-        long minPartSize,
-        Integer concurrency,
-        Double memoryUsageFactor,
-        Long initialReadBufferSizeInBytes
+            Region region,
+            AwsCredentialsProvider credentialsProvider,
+            String endpoint,
+            double targetThroughput,
+            long minPartSize,
+            Integer concurrency,
+            Double memoryUsageFactor,
+            Long initialReadBufferSizeInBytes
     ) {
         return () -> {
             S3CrtAsyncClientBuilder crtBuilder =
-                S3AsyncClient.crtBuilder()
-                             .targetThroughputInGbps(targetThroughput)
-                             .minimumPartSizeInBytes(minPartSize);
+                    S3AsyncClient.crtBuilder()
+                            .targetThroughputInGbps(targetThroughput)
+                            .minimumPartSizeInBytes(minPartSize);
 
             if (credentialsProvider != null) {
                 crtBuilder.credentialsProvider(credentialsProvider);
@@ -151,10 +151,6 @@ public class S3BitStoreService extends BaseBitStoreService {
 
             if (region != null) {
                 crtBuilder.region(region);
-            }
-
-            if (maxConcurrency != null) {
-                crtBuilder.maxConcurrency(maxConcurrency);
             }
 
             if (StringUtils.isNotBlank(endpoint)) {
@@ -193,14 +189,14 @@ public class S3BitStoreService extends BaseBitStoreService {
             }
 
             final long readBuffer = Math.round(
-                Math.floor((((double) maxMemory / maxConcurrency / minPartSize) - 1) * minPartSize)
+                    Math.floor((((double) maxMemory / maxConcurrency / minPartSize) - 1) * minPartSize)
             );
 
             final long maxReadBuffer;
             if (readBuffer < minPartSize) {
                 log.warn(
-                    "Calculated read buffer size is less than the minimum part size. Adjusting to minimum part " +
-                    "size."
+                        "Calculated read buffer size is less than the minimum part size. Adjusting to minimum part " +
+                                "size."
                 );
                 maxReadBuffer = minPartSize;
                 maxConcurrency = Math.max((int) Math.floor((double) maxMemory / (maxReadBuffer + minPartSize)), 1);
@@ -210,14 +206,14 @@ public class S3BitStoreService extends BaseBitStoreService {
             }
 
             log.info(
-                "Calculated read buffer size: {} bytes, max concurrency: {}, based on memory usage factor: {} " +
-                "and max memory: {} bytes",
-                maxReadBuffer, maxConcurrency, memoryUsageFactor, maxMemory
+                    "Calculated read buffer size: {} bytes, max concurrency: {}, based on memory usage factor: {} " +
+                            "and max memory: {} bytes",
+                    maxReadBuffer, maxConcurrency, memoryUsageFactor, maxMemory
             );
 
             return crtBuilder.maxConcurrency(maxConcurrency)
-                             .initialReadBufferSizeInBytes(maxReadBuffer)
-                             .build();
+                    .initialReadBufferSizeInBytes(maxReadBuffer)
+                    .build();
         };
     }
 
@@ -267,12 +263,12 @@ public class S3BitStoreService extends BaseBitStoreService {
                 s3AsyncClient = FunctionalUtils.getDefaultOrBuild(
                         this.s3AsyncClient,
                         amazonClientBuilderBy(
-                            region,
-                            StaticCredentialsProvider.create(
-                                AwsBasicCredentials.create(getAwsAccessKey(), getAwsSecretKey())
-                            ),
-                            endpoint, targetThroughputGbps, minPartSizeBytes, maxConcurrency, memoryUsageFactor,
-                            initialReadBufferSizeInBytes
+                                region,
+                                StaticCredentialsProvider.create(
+                                        AwsBasicCredentials.create(getAwsAccessKey(), getAwsSecretKey())
+                                ),
+                                endpoint, targetThroughputGbps, minPartSizeBytes, maxConcurrency, memoryUsageFactor,
+                                initialReadBufferSizeInBytes
                         )
                 );
                 log.warn("S3 Region set to: " + region.id());
@@ -281,8 +277,8 @@ public class S3BitStoreService extends BaseBitStoreService {
                 s3AsyncClient = FunctionalUtils.getDefaultOrBuild(
                         this.s3AsyncClient,
                         amazonClientBuilderBy(
-                            null, null, endpoint, targetThroughputGbps,
-                            minPartSizeBytes, maxConcurrency, memoryUsageFactor, initialReadBufferSizeInBytes
+                                null, null, endpoint, targetThroughputGbps,
+                                minPartSizeBytes, maxConcurrency, memoryUsageFactor, initialReadBufferSizeInBytes
                         )
                 );
             }
@@ -355,7 +351,7 @@ public class S3BitStoreService extends BaseBitStoreService {
 
         try {
             return s3AsyncClient.getObject(r -> r.bucket(bucketName).key(objectKey),
-                AsyncResponseTransformer.toBlockingInputStream()).join();
+                    AsyncResponseTransformer.toBlockingInputStream()).join();
         } catch (CompletionException e) {
             throw new IOException(e.getCause());
         }
@@ -685,7 +681,7 @@ public class S3BitStoreService extends BaseBitStoreService {
 
         // Todo configurable region
         store.s3AsyncClient = S3AsyncClient.builder().credentialsProvider(credentialsProvider).
-                                region(Region.US_EAST_1).build();
+                region(Region.US_EAST_1).build();
 
         // get hostname of DSpace UI to use to name bucket
         String hostname = Utils.getHostName(configurationService.getProperty("dspace.ui.url"));
