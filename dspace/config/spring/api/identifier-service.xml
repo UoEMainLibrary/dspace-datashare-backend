@@ -95,7 +95,6 @@
          e.g. EZID is part of DataCite but provides their own APIs. The following
          DataCiteConnector won't work if EZID is your registration agency.
     -->
-    
     <!-- Uncomment this to use the DataCite API directly as DOIConnector.-->
     <!-- // DATASHARE - start -->
     <bean id="org.dspace.identifier.doi.DOIConnector"
