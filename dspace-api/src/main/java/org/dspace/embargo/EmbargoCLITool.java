@@ -131,8 +131,7 @@ public class EmbargoCLITool {
             Date now = new Date();
 
             // DATASHARE - start
-            if (line.hasOption('e'))
-            {
+            if (line.hasOption('e')) {
                 embargoService.checkForExpiry(context);
                 System.exit(0);
             }
