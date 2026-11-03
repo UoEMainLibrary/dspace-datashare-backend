@@ -275,6 +275,12 @@ public class EmbargoServiceImpl implements EmbargoService {
     }
 
     // DATASHARE - start
+    @Override
+    public Iterator<Item> findItemsByTermsMetadata(Context context)
+            throws SQLException, IOException, AuthorizeException {
+        return itemService.findByMetadataField(context, terms_schema, terms_element, terms_qualifier, Item.ANY);
+    }
+
     /**
      * Check for any items whose embargo is about to expire.
      * 
@@ -289,7 +295,7 @@ public class EmbargoServiceImpl implements EmbargoService {
 
             // Ignore today if is Saturday && Sunday
             if (dayNow != DayOfWeek.SATURDAY && dayNow != DayOfWeek.SUNDAY) {
-                Iterator<Item> ii = findItemsByLiftMetadata(context);
+                Iterator<Item> ii = findItemsByTermsMetadata(context);
 
                 while (ii.hasNext()) {
                     Item item = ii.next();

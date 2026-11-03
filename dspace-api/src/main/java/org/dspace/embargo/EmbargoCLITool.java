@@ -99,6 +99,11 @@ public class EmbargoCLITool {
                           "Function: Adjust bitstreams policies");
 
         options.addOption("h", "help", false, "help");
+
+        // DATASHARE - start
+        options.addOption("e", "expire", false, "Notify depositor an embargoed item is about to expire.");
+        // DATASHARE - end
+
         CommandLine line = null;
         try {
             line = new DefaultParser().parse(options, argv);
@@ -124,6 +129,15 @@ public class EmbargoCLITool {
             context = new Context(Context.Mode.BATCH_EDIT);
             context.turnOffAuthorisationSystem();
             Date now = new Date();
+
+            // DATASHARE - start
+            if (line.hasOption('e'))
+            {
+                embargoService.checkForExpiry(context);
+                System.exit(0);
+            }
+
+            // DATASHARE - end
 
             // scan items under embargo
             if (line.hasOption('i')) {
