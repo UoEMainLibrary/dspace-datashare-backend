@@ -1,4 +1,4 @@
-Subject: DataShare: Embargo Expiry
+#set($subject = "Datashare: Embargo Expiry")
 
 The embargo for DataShare item ${params[0]} at ${params[1]} will expire on ${params[2]}.
 
@@ -6,6 +6,7 @@ If you need to request a change to the embargo date, e.g. an extension, please e
 N.B. the system will not allow you as the depositor to change the date - only the administrator group has permissions
 to change metadata including the embargo date.
 
+${params[3]}
 Research Data Support team
 Library and University Collections
 University of Edinburgh
