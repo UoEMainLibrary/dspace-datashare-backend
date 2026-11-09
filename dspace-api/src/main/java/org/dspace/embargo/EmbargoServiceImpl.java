@@ -362,6 +362,7 @@ public class EmbargoServiceImpl implements EmbargoService {
             mail.addArgument(getItemTitle(item));
             mail.addArgument(configurationService.getProperty("handle.canonical.prefix") + item.getHandle());
             mail.addArgument(liftDCDate.displayDate(false, true, context.getCurrentLocale()));
+            mail.addArgument(configurationService.getProperty("dspace.ui.url"));
 
             mail.addRecipient(submitter);
 
