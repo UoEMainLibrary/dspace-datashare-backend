@@ -21,6 +21,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
+import org.dspace.app.util.XMLUtils;
 import org.dspace.xoai.tests.support.XmlMatcherBuilder;
 import org.junit.Test;
 
@@ -65,9 +66,6 @@ public class DataCiteXslTest {
 
     // The DataCite crosswalk is XSLT 2.0 (uses current-date(), lower-case()), so it
     // requires Saxon just like the OAI stylesheets exercised by AbstractXSLTest.
-    private static final TransformerFactory factory =
-        TransformerFactory.newInstance("net.sf.saxon.TransformerFactoryImpl", null);
-
     private static final File CROSSWALK =
         new File("../dspace/config/crosswalks/DIM2DataCite.xsl");
 
@@ -77,6 +75,9 @@ public class DataCiteXslTest {
             throw new IllegalArgumentException("Test fixture not found on classpath: " + fixture);
         }
         try (input) {
+            TransformerFactory factory = XMLUtils.getTrustedTransformerFactory(
+                "net.sf.saxon.TransformerFactoryImpl",
+                new String[] {CROSSWALK.getAbsoluteFile().getParent()});
             Transformer transformer = factory.newTransformer(new StreamSource(CROSSWALK));
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             transformer.transform(new StreamSource(input), new StreamResult(out));

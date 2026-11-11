@@ -374,7 +374,7 @@
     <!-- This template creates the sub-element <datacite:nameIdentifier> of type Researcher ID from a Person built entity -->
     <xsl:template match="doc:field[starts-with(@name,'person.identifier.rid')]" mode="entity_author">
         <datacite:nameIdentifier nameIdentifierScheme="Researcher ID"
-            schemeURI="https://www.researcherid.com">
+            schemeURI="https://www.webofscience.com">
             <xsl:value-of select="./text()"/>
         </datacite:nameIdentifier>
     </xsl:template>
@@ -893,13 +893,13 @@
     <!-- datacite:sizes -->
     <!-- https://openaire-guidelines-for-literature-repository-managers.readthedocs.io/en/4.0.1/field_size.html -->
     <xsl:template match="doc:element[@name='bundles']/doc:element[@name='bundle']" mode="datacite">
-        <datacite:sizes>
-            <xsl:if test="doc:field[@name='name' and text()='ORIGINAL']">
+        <xsl:if test="doc:field[@name='name' and text()='ORIGINAL']">
+            <datacite:sizes>
                 <xsl:for-each select="doc:element[@name='bitstreams']/doc:element[@name='bitstream']">
                     <xsl:apply-templates select="." mode="datacite"/>
                 </xsl:for-each>
-            </xsl:if>
-        </datacite:sizes>
+            </datacite:sizes>
+        </xsl:if>
     </xsl:template>
     
      <!-- datacite:size -->
@@ -1501,7 +1501,7 @@
             </xsl:when>
             <xsl:when test="$lc_dc_type = 'thesis'">
                 <xsl:text>literature</xsl:text>
-            </xsl:when>		
+            </xsl:when>
             <xsl:when test="$lc_dc_type = 'dataset'">
                 <xsl:text>dataset</xsl:text>
             </xsl:when>

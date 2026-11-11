@@ -2,7 +2,7 @@
 ##
 ## See org.dspace.core.Email for information on the format of this file.
 ##
-#set($subject = "DataShare: Registration Notification")
+#set($subject = "${config.get('dspace.name')}: Registration Notification")
 
 
 

@@ -10,7 +10,7 @@
 ##
 ## See org.dspace.core.Email for information on the format of this file.
 ##
-#set($subject = "Datashare: Feedback Form Information")
+#set($subject = "${config.get('dspace.name')}: Feedback Form Information")
 
 Comments:
 
