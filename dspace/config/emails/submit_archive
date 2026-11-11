@@ -4,7 +4,7 @@
 ## {1}  Name of collection
 ## {2}  handle
 ##
-#set($subject = "Datashare: Submission Approved and Archived")
+#set($subject = "${config.get('dspace.name')}: Submission Approved and Archived")
 
 You submitted: ${params[0]}
 

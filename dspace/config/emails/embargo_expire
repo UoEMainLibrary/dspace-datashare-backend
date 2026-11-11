@@ -1,4 +1,4 @@
-#set($subject = "${params[3]}: Embargo Expiry")
+#set($subject = "${config.get('dspace.name')}: Embargo Expiry")
 
 The embargo for DataShare item ${params[0]} at ${params[1]} will expire on ${params[2]}.
 
