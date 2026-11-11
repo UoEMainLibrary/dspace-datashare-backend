@@ -8,7 +8,7 @@
 ##             {5} Date of the received LDN notification
 ##
 ##
-#set($subject = "Datashare: The Service ${params[0]} has accepted to review the Item ""${params[1]}""")
+#set($subject = "${config.get('dspace.name')}: The Service ${params[0]} has accepted to review the Item ""${params[1]}""")
 
 An acceptance notification has been received by the service: ${params[0]}
 for the Item: ${params[1]}
