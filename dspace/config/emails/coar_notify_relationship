@@ -10,7 +10,7 @@
 ##             {7} Item
 ##
 ##
-#set($subject = "Datashare: The Service ${params[0]} has related a Resource ""${params[6].object.subject}""")
+#set($subject = "${config.get('dspace.name')}: The Service ${params[0]} has related a Resource ""${params[6].object.subject}""")
 
 A relationship announce notification has been received relating to the Item: ${params[1]}
 
